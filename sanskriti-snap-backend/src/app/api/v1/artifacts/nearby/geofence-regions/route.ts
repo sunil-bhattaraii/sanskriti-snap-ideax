@@ -1,36 +1,45 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { requireAuthContext } from "@/lib/auth";
+import { DistanceQuery, GEOFENCE_MAX_REGIONS } from "@/lib/contracts";
 import { connect } from "@/lib/db";
-import { toErrorResponse } from "@/lib/errors";
+import { ApiError, toErrorResponse } from "@/lib/errors";
 import { Artifact } from "@/models/artifact";
+import { Discovery } from "@/models/verification";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuthContext();
+    const { user } = await requireAuthContext();
     await connect();
 
     const { searchParams } = new URL(request.url);
-    const latitude = Number(searchParams.get("latitude"));
-    const longitude = Number(searchParams.get("longitude"));
+    const parsedQuery = DistanceQuery.safeParse({
+      latitude: searchParams.get("latitude"),
+      longitude: searchParams.get("longitude"),
+    });
 
-    if (
-      !Number.isFinite(latitude) ||
-      !Number.isFinite(longitude) ||
-      latitude < -90 ||
-      latitude > 90 ||
-      longitude < -180 ||
-      longitude > 180
-    ) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Latitude and longitude must be valid coordinates.",
-          },
-        },
-        { status: 422 },
-      );
+    if (!parsedQuery.success) {
+      throw ApiError.validation("Latitude and longitude must be valid coordinates.", {
+        fields: Object.fromEntries(
+          Object.entries(parsedQuery.error.flatten().fieldErrors).map(
+            ([key, value]) => [key, value?.[0] ?? "Invalid coordinate"],
+          ),
+        ),
+      });
+    }
+
+    const { latitude, longitude } = parsedQuery.data;
+
+    const discoveries = await Discovery.find({ userId: user._id })
+      .select("artifactId")
+      .lean();
+    const discoveredArtifactIds = discoveries.map((d) => d.artifactId);
+
+    const queryFilter: Record<string, unknown> = {
+      status: "PUBLISHED",
+    };
+    if (discoveredArtifactIds.length > 0) {
+      queryFilter._id = { $nin: discoveredArtifactIds };
     }
 
     const docs = await Artifact.aggregate([
@@ -40,18 +49,23 @@ export async function GET(request: NextRequest) {
           distanceField: "distanceMeters",
           spherical: true,
           maxDistance: 50_000,
-          query: { status: "PUBLISHED" },
+          query: queryFilter,
         },
       },
       { $sort: { distanceMeters: 1 } },
-      { $limit: 20 },
+      { $limit: GEOFENCE_MAX_REGIONS + 1 },
     ]);
 
-    const regions = docs.map((doc) => {
-      const [artifactLongitude, artifactLatitude] = (doc.location as { coordinates: number[] }).coordinates;
+    const hasMore = docs.length > GEOFENCE_MAX_REGIONS;
+    const items = docs.slice(0, GEOFENCE_MAX_REGIONS);
+
+    const regions = items.map((doc) => {
+      const [artifactLongitude, artifactLatitude] = (
+        doc.location as { coordinates: number[] }
+      ).coordinates;
       const suggestedRadiusMeters = Math.max(
-        1_000,
-        Number(doc.verificationRadiusMeters ?? 0),
+        150,
+        Number(doc.verificationRadiusMeters ?? 150),
       );
 
       return {
@@ -66,10 +80,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       regions,
       meta: {
-        totalAvailable: regions.length,
+        totalAvailable: docs.length,
         returned: regions.length,
-        truncated: regions.length >= 20,
-        maxRegions: 20,
+        truncated: hasMore,
+        maxRegions: GEOFENCE_MAX_REGIONS,
       },
     });
   } catch (err) {

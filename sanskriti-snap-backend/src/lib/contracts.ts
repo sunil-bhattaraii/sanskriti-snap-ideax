@@ -391,6 +391,18 @@ export const DistanceQuery = z.object({
   longitude: z.coerce.number().min(-180).max(180),
 });
 
+/**
+ * docs/API Contract.md 5.9 — Publish a verification photo as a community snap.
+ */
+export const CreateCommunitySnapRequest = z
+  .object({
+    verificationAttemptId: z.string().regex(/^[a-f0-9]{24}$/i, "Invalid attempt id."),
+    imagePublicId: z.string().min(1),
+    caption: z.string().max(280).nullish(),
+  })
+  .strict();
+export type CreateCommunitySnapRequest = z.infer<typeof CreateCommunitySnapRequest>;
+
 /* ------------------------------------------------------------------- DTOs */
 
 export type ArtifactSummary = {
