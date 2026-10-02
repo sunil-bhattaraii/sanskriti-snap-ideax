@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,8 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Button } from '@/components/ui/Button';
-import { COLORS } from '@/constants/colors';
+import { Button } from '../../components/ui/Button';
+import { COLORS } from '../../constants/colors';
 
 export default function RegisterScreen() {
   const router = useRouter();
