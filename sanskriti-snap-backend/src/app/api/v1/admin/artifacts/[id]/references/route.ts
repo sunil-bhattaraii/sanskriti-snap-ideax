@@ -52,10 +52,12 @@ export async function POST(request: Request, context: RouteContext) {
 
     const { imagePublicId, isCover } = parsed.data;
 
-    // Verify the image was signed for this user
+    // Verify the image was uploaded via a token signed for this admin user.
+    // Artifact reference images are signed with purpose VERIFICATION_GALLERY
+    // (docs/API Contract.md §6.1 — no dedicated ARTIFACT_REFERENCE purpose exists).
     if (!assertMediaOwnership(imagePublicId, "VERIFICATION_GALLERY", user._id)) {
       throw ApiError.validation(
-        "imagePublicId must be signed for VERIFICATION_GALLERY for this user.",
+        "imagePublicId must be signed for this user via POST /api/v1/media/sign with purpose VERIFICATION_GALLERY.",
       );
     }
 
