@@ -192,6 +192,20 @@ export const MediaSignRequest = z
   .strict();
 export type MediaSignRequest = z.infer<typeof MediaSignRequest>;
 
+/**
+ * docs/API Contract.md 6.1. The client echoes these params on its direct upload
+ * to Cloudinary. `folder` is part of the signed string, so a client that
+ * rewrites the path invalidates the signature rather than uploading elsewhere.
+ */
+export type MediaSignResponse = {
+  cloudName: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+  resourceType: "image";
+};
+
 export const PatchProfileRequest = z
   .object({
     displayName: z.string().min(1).max(60).optional(),

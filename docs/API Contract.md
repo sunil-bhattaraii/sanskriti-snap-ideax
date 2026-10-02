@@ -931,6 +931,11 @@ resource type and folder by `Backend TDS.md` §61.
 choose an arbitrary folder. Accepted values: `VERIFICATION_SNAP`,
 `VERIFICATION_GALLERY`, `PROFILE_IMAGE`, `COMMUNITY_SNAP`, `CONTRIBUTION_PHOTO`.
 
+To enforce the per-user ownership rule in §6.2 without requiring an ephemeral
+database collection, `folder` includes a deterministic HMAC token derived from
+the caller's user id: `<cloudName>/<purposeFolder>/<userToken>`. Downstream writes
+verify the token in the `publicId` before accepting it.
+
 `contentType` must be `image/jpeg` or `image/png`. The backend rejects anything
 else rather than trusting the declared type, because the CV service assumes a
 decodable image.
