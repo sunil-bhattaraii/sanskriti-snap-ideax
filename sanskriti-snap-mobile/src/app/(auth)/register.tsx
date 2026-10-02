@@ -39,17 +39,14 @@ export default function RegisterScreen() {
       return;
     }
 
-    Alert.alert(
-      'Not connected yet',
-      'Wire up your auth API to enable registration.'
-    );
+    router.push({
+      pathname: '/(auth)/choose-username',
+      params: { mode: 'register' },
+    });
   };
 
   const handleGoogleSignUp = () => {
-    Alert.alert(
-      'Not connected yet',
-      'Wire up your auth API to enable Google sign-up.'
-    );
+    router.replace('/(tabs)');
   };
 
   return (
@@ -62,6 +59,15 @@ export default function RegisterScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={styles.topNav}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.header}>
             <Ionicons name="camera" size={28} color={COLORS.primary} />
             <Text style={styles.logoText}>Sanskriti Snap</Text>
@@ -178,9 +184,7 @@ export default function RegisterScreen() {
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity
-                onPress={() => router.push('/login')}
-              >
+              <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
                 <Text style={styles.footerLink}>Login</Text>
               </TouchableOpacity>
             </View>
@@ -194,12 +198,19 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.neutral },
   container: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 40 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 20 },
+  topNav: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  backButton: {
+    padding: 8,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   logoText: {
     fontSize: 24,
@@ -207,14 +218,14 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginLeft: 8,
   },
-  titleSection: { marginBottom: 32, alignItems: 'center' },
+  titleSection: { marginBottom: 28, alignItems: 'center' },
   title: {
     fontSize: 28,
     fontWeight: '800',
     color: COLORS.primary,
     textAlign: 'center',
     lineHeight: 36,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
@@ -223,7 +234,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   form: { width: '100%' },
-  inputContainer: { marginBottom: 20 },
+  inputContainer: { marginBottom: 18 },
   label: {
     fontSize: 14,
     fontWeight: '600',
@@ -242,10 +253,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   inputText: { flex: 1, fontSize: 16, color: COLORS.text },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   line: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
   dividerText: { marginHorizontal: 16, color: COLORS.tertiary, fontSize: 13 },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 32 },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   footerText: { color: COLORS.tertiary, fontSize: 14 },
   footerLink: { color: COLORS.primary, fontSize: 14, fontWeight: '700' },
 });

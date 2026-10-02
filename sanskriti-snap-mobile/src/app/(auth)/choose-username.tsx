@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button';
 import { COLORS } from '../../constants/colors';
 
 export default function ChooseUsernameScreen() {
+  const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const [username, setUsername] = useState('');
 
@@ -42,10 +43,13 @@ export default function ChooseUsernameScreen() {
       return;
     }
 
-    Alert.alert(
-      'Not connected yet',
-      'Wire up your auth API to save the username.'
-    );
+    if (mode === 'edit') {
+      Alert.alert('Success', 'Username updated successfully!', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   return (
@@ -60,7 +64,7 @@ export default function ChooseUsernameScreen() {
         >
           <View style={styles.iconContainer}>
             <View style={styles.iconWrapper}>
-              <Ionicons name="camera" size={32} color={COLORS.primary} />
+              <Ionicons name="person" size={32} color={COLORS.primary} />
             </View>
           </View>
 
@@ -70,7 +74,7 @@ export default function ChooseUsernameScreen() {
             </Text>
             <Text style={styles.subtitle}>
               Choose a unique username to represent you on the leaderboard and
-              in the community.
+              in the heritage community.
             </Text>
           </View>
 
@@ -95,12 +99,12 @@ export default function ChooseUsernameScreen() {
                   size={14}
                   color={COLORS.tertiary}
                 />{' '}
-                Username must be at least 3 characters.
+                Username must be at least 3 characters (letters, numbers, _).
               </Text>
             </View>
 
             <Button
-              title={mode === 'register' ? 'START EXPLORING' : 'Submit'}
+              title={mode === 'register' ? 'START EXPLORING' : 'Save Username'}
               onPress={handleContinue}
               variant="primary"
               size="lg"
