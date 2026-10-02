@@ -1,7 +1,9 @@
+import { useAuthStore } from '@/store/authstore';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -12,18 +14,90 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/Button';
 import { COLORS } from '../../constants/colors';
+import { apiRequest } from '../../services/api';
 
 export default function ChooseUsernameScreen() {
-  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const { mode } = useLocalSearchParams();
+  const router = useRouter();
   const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const { user, profile, loading: authLoading, fetchProfile } = useAuthStore();
 
   const normalizedUsername = username.trim().toLowerCase();
-  const isValid =
-    normalizedUsername.length >= 3 && /^[a-z0-9_]+$/.test(normalizedUsername);
 
-  const handleContinue = () => {
+  // Generate a default username from the user's display name or email
+  useEffect(() => {
+    if (!user) return;
+
+    // If in edit mode, use the current username from profile
+    if (mode === 'edit' && profile?.username) {
+      setUsername(profile.username);
+      return;
+    }
+
+    // Otherwise (register mode), generate from display name or email
+    const displayName = user.fullName || '';
+    const email = user.email || '';
+
+    let defaultUsername = '';
+
+    if (displayName) {
+      defaultUsername = displayName.toLowerCase().replace(/\s+/g, '');
+    } else if (email) {
+      defaultUsername = email.split('@')[0].toLowerCase();
+    }
+
+    defaultUsername = defaultUsername.slice(0, 15);
+    if (!defaultUsername) {
+      defaultUsername = 'user_' + user.id.slice(0, 6);
+    }
+
+    setUsername(defaultUsername);
+  }, [user, profile, mode]);
+
+  // Check username availability (debounced)
+  useEffect(() => {
+    if (!user) {
+      setIsAvailable(null);
+      return;
+    }
+
+    const checkAvailability = async () => {
+      if (!normalizedUsername || normalizedUsername.length < 3) {
+        setIsAvailable(null);
+        return;
+      }
+
+      setChecking(true);
+      try {
+        const data = await apiRequest<{ available: boolean }>(
+          `/usernames/availability?username=${encodeURIComponent(normalizedUsername)}`,
+        );
+        setIsAvailable(data.available);
+      } catch (err) {
+        console.error('Username check failed:', err);
+        setIsAvailable(null);
+      } finally {
+        setChecking(false);
+      }
+    };
+
+    const timeoutId = setTimeout(checkAvailability, 500); // 500ms debounce
+    return () => clearTimeout(timeoutId);
+  }, [normalizedUsername, user]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      Alert.alert('Session expired', 'Please sign in again.');
+      router.replace('/(auth)/login');
+    }
+  }, [authLoading, router, user]);
+
+  const handleContinue = async () => {
     if (!normalizedUsername || normalizedUsername.length < 3) {
       Alert.alert('Error', 'Username must be at least 3 characters long');
       return;
@@ -34,7 +108,8 @@ export default function ChooseUsernameScreen() {
       return;
     }
 
-    if (!/^[a-z0-9_]+$/.test(normalizedUsername)) {
+    // Validate username format (alphanumeric and underscores only)
+    if (!/^[a-zA-Z0-9_]+$/.test(normalizedUsername)) {
       Alert.alert(
         'Error',
         'Username can only contain letters, numbers, and underscores'
@@ -42,11 +117,43 @@ export default function ChooseUsernameScreen() {
       return;
     }
 
-    Alert.alert(
-      'Not connected yet',
-      'Wire up your auth API to save the username.'
-    );
+    if (checking || isAvailable !== true) {
+      Alert.alert('Unavailable', 'Choose an available username first.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (!user) return;
+
+      // Update the profile with the chosen username
+      await apiRequest('/me/username', {
+        method: 'PATCH',
+        body: JSON.stringify({ username: normalizedUsername }),
+      });
+
+      // Refresh the profile in the store
+      await fetchProfile(user!.id);
+
+      // Navigate to main app
+      router.replace('/');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update username');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (authLoading || !user) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -58,15 +165,17 @@ export default function ChooseUsernameScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Icon */}
           <View style={styles.iconContainer}>
             <View style={styles.iconWrapper}>
               <Ionicons name="camera" size={32} color={COLORS.primary} />
             </View>
           </View>
 
+          {/* Title Section */}
           <View style={styles.titleSection}>
             <Text style={styles.title}>
-              {mode === 'edit' ? 'Modify Username' : 'One Last Step'}
+              {mode == 'edit' ? 'Modify Username' : 'One Last Step'}
             </Text>
             <Text style={styles.subtitle}>
               Choose a unique username to represent you on the leaderboard and
@@ -74,6 +183,7 @@ export default function ChooseUsernameScreen() {
             </Text>
           </View>
 
+          {/* Form */}
           <View style={styles.form}>
             <View style={styles.inputContainer}>
               <View style={styles.input}>
@@ -89,6 +199,34 @@ export default function ChooseUsernameScreen() {
                 />
               </View>
 
+              {/* Availability Indicator */}
+              {checking && (
+                <View style={styles.statusContainer}>
+                  <ActivityIndicator size="small" color={COLORS.tertiary} />
+                  <Text style={styles.statusText}>
+                    Checking availability...
+                  </Text>
+                </View>
+              )}
+
+              {isAvailable === true && (
+                <View style={styles.statusContainer}>
+                  <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                  <Text style={[styles.statusText, styles.successText]}>
+                    Username is available!
+                  </Text>
+                </View>
+              )}
+
+              {isAvailable === false && username.length >= 3 && (
+                <View style={styles.statusContainer}>
+                  <Ionicons name="close-circle" size={16} color="#EF4444" />
+                  <Text style={[styles.statusText, styles.errorText]}>
+                    Username is already taken
+                  </Text>
+                </View>
+              )}
+
               <Text style={styles.hintText}>
                 <Ionicons
                   name="information-circle-outline"
@@ -100,15 +238,20 @@ export default function ChooseUsernameScreen() {
             </View>
 
             <Button
-              title={mode === 'register' ? 'START EXPLORING' : 'Submit'}
+              title={mode == 'register' ? 'START EXPLORING' : 'Submit'}
               onPress={handleContinue}
+              loading={loading}
               variant="primary"
               size="lg"
               fullWidth
               rightIcon={
-                <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
+                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
               }
-              disabled={!isValid}
+              disabled={
+                normalizedUsername.length < 3 ||
+                checking ||
+                isAvailable !== true
+              }
             />
           </View>
         </ScrollView>
@@ -120,6 +263,8 @@ export default function ChooseUsernameScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.neutral },
   container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 16, fontSize: 16, color: COLORS.tertiary },
   scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 40 },
 
   iconContainer: {
@@ -163,6 +308,22 @@ const styles = StyleSheet.create({
   },
   inputText: { fontSize: 16, color: COLORS.text },
 
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+  },
+  successText: {
+    color: '#10B981',
+  },
+  errorText: {
+    color: '#EF4444',
+  },
   hintText: {
     flexDirection: 'row',
     alignItems: 'center',
