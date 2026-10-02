@@ -213,3 +213,25 @@ StoryUnlockSchema.index({ userId: 1 });
 
 export type StoryUnlockDoc = InferSchemaType<typeof StoryUnlockSchema>;
 export const StoryUnlock = model("StoryUnlock", StoryUnlockSchema);
+
+/* -------------------------------------------------------- idempotencyKeys - */
+
+/**
+ * Stores response payloads for Idempotency-Key headers (docs/API Contract.md 2.7).
+ * TTL index clears keys automatically after 24 hours (86400 seconds).
+ */
+const IdempotencyKeySchema = new Schema(
+  {
+    key: { type: String, required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    statusCode: { type: Number, required: true },
+    responseBody: { type: Schema.Types.Mixed, required: true },
+    createdAt: { type: Date, default: () => new Date(), expires: 86400 },
+  },
+  { timestamps: false },
+);
+
+IdempotencyKeySchema.index({ key: 1, userId: 1 }, { unique: true });
+
+export type IdempotencyKeyDoc = InferSchemaType<typeof IdempotencyKeySchema>;
+export const IdempotencyKey = model("IdempotencyKey", IdempotencyKeySchema);
