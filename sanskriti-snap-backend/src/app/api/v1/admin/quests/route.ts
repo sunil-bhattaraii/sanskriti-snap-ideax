@@ -20,7 +20,8 @@ import { connect, withTransaction } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
 import { readJsonBody } from "@/lib/http";
 import { Artifact } from "@/models/artifact";
-import { AdminAction, Quest } from "@/models/gamification";
+import { AdminAction } from "@/models/community";
+import { Quest } from "@/models/gamification";
 
 export async function POST(request: Request) {
   try {
