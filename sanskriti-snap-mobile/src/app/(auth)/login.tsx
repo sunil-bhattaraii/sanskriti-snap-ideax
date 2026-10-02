@@ -13,8 +13,8 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Button } from '@/components/ui/Button';
-import { COLORS } from '@/constants/colors';
+import { Button } from '../../components/ui/Button';
+import { COLORS } from '../../constants/colors';
 
 export default function LoginScreen() {
     const router = useRouter();
