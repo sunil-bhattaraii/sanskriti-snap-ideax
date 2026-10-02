@@ -14,7 +14,7 @@ import { toErrorResponse } from "@/lib/errors";
 import { Artifact } from "@/models/artifact";
 import { Discovery } from "@/models/verification";
 
-export async function GET(_request: Request) {
+export async function GET() {
   try {
     const { user } = await requireAuthContext();
     await connect();

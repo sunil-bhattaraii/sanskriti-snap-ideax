@@ -12,7 +12,7 @@ import { connect } from "@/lib/db";
 import { toErrorResponse } from "@/lib/errors";
 import { Quest, UserQuestProgress } from "@/models/gamification";
 
-export async function GET(_request: Request) {
+export async function GET() {
   try {
     const ctx = await getAuthContext();
     await connect();
