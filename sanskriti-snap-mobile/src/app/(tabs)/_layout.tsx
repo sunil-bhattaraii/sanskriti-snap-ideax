@@ -69,6 +69,54 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="badges"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboard"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="collection"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="saved-places"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="rewards"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="quests"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="quest-details"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="empty-collection"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

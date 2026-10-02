@@ -33,10 +33,10 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({ item, onPress })
       
       {/* Rarity Badge */}
       <View style={[styles.rarityBadge, { backgroundColor: rarityConfig.badgeColor }]}>
-        <Ionicons 
-          name={item.rarity === 'Legendary' ? 'stars' : item.rarity === 'Rare' ? 'auto-awesome' : 'water-drop'} 
-          size={12} 
-          color={rarityConfig.textColor} 
+        <Ionicons
+          name={item.rarity === 'Legendary' ? 'star' : item.rarity === 'Rare' ? 'sparkles' : 'water'}
+          size={12}
+          color={rarityConfig.textColor}
         />
         <Text style={[styles.rarityText, { color: rarityConfig.textColor }]}>
           {item.rarity}

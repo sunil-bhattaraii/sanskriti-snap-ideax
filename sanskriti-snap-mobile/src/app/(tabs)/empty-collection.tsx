@@ -20,7 +20,12 @@ export default function EmptyCollectionScreen() {
 
   const handleTabPress = (tab: string) => {
     if (tab === 'collection') return;
-    router.push(`/${tab}`);
+    const paths: Record<string, any> = {
+      index: '/',
+      explore: '/explore',
+      profile: '/profile',
+    };
+    router.push(paths[tab] || '/');
   };
 
   return (

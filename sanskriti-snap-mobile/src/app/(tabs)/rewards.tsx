@@ -22,7 +22,12 @@ export default function RewardsScreen() {
 
   const handleTabPress = (tab: string) => {
     if (tab === 'profile') return;
-    router.push(`/${tab}`);
+    const paths: Record<string, any> = {
+      index: '/',
+      explore: '/explore',
+      collection: '/collection',
+    };
+    router.push(paths[tab] || '/');
   };
 
   // In a real app, filter rewards based on activeFilter

@@ -102,7 +102,7 @@ export default function BottomSheet({
 
       enableContentPanningGesture={false}
 
-      backdropComponent={(props) => (
+      backdropComponent={(props: any) => (
         <BottomSheetBackdrop
           {...props}
           disappearsOnIndex={-1}

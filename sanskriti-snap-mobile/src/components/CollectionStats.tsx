@@ -19,7 +19,7 @@ export const CollectionStats: React.FC<CollectionStatsProps> = ({ stats }) => {
       <View style={styles.statItem}>
         <Text style={styles.statLabel}>LIFETIME XP</Text>
         <View style={styles.xpContainer}>
-          <Ionicons name="workspace-premium" size={16} color="#F59E0B" />
+          <Ionicons name="ribbon" size={16} color="#F59E0B" />
           <Text style={[styles.statValue, styles.xpValue]}>
             {stats.lifetimeXP.toLocaleString()}
           </Text>

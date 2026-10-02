@@ -17,7 +17,12 @@ export default function SavedPlacesScreen() {
 
   const handleTabPress = (tab: string) => {
     if (tab === 'profile') return; // Already on profile-related screen
-    router.push(`/${tab}`);
+    const paths: Record<string, any> = {
+      index: '/',
+      explore: '/explore',
+      collection: '/collection',
+    };
+    router.push(paths[tab] || '/');
   };
 
   return (

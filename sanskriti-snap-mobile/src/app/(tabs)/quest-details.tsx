@@ -19,7 +19,13 @@ export default function QuestDetailsScreen() {
 
   const handleTabPress = (tab: string) => {
     if (tab === 'quests') return;
-    router.push(`/${tab}`);
+    const paths: Record<string, any> = {
+      index: '/',
+      explore: '/explore',
+      profile: '/profile',
+      collection: '/collection',
+    };
+    router.push(paths[tab] || '/');
   };
 
   return (

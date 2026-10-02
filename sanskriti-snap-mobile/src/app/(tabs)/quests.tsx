@@ -19,7 +19,12 @@ export default function QuestsScreen() {
 
   const handleTabPress = (tab: string) => {
     if (tab === 'quests') return;
-    router.push(`/${tab}`);
+    const paths: Record<string, any> = {
+      index: '/',
+      explore: '/explore',
+      profile: '/profile',
+    };
+    router.push(paths[tab] || '/');
   };
 
   // In a real app, you would filter mockQuests based on activeFilter here
