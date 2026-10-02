@@ -7,7 +7,12 @@
  * GeoJSON Point.
  */
 
-import { Schema, model, type InferSchemaType } from "mongoose";
+import mongoose, {
+  Schema,
+  model,
+  type Model,
+  type InferSchemaType,
+} from "mongoose";
 
 /**
  * GeoJSON is [longitude, latitude] — the reverse of the intuitive order and a
@@ -47,7 +52,7 @@ const ArtifactSchema = new Schema(
     slug: { type: String, required: true, unique: true, trim: true },
 
     description: { type: String, required: true },
-    story: { type: String, required: true },
+    story: { type: String, required: false },
 
     category: {
       type: String,
@@ -125,7 +130,9 @@ ArtifactSchema.index({ tags: 1 });
 ArtifactSchema.index({ name: "text", description: "text" });
 
 export type ArtifactDoc = InferSchemaType<typeof ArtifactSchema>;
-export const Artifact = model("Artifact", ArtifactSchema);
+export const Artifact =
+  (mongoose.models["Artifact"] as Model<ArtifactDoc>) ??
+  model("Artifact", ArtifactSchema);
 
 /* --------------------------------------------------- artifactReferences -- */
 
@@ -173,7 +180,6 @@ ArtifactReferenceSchema.index({ artifactId: 1 });
 ArtifactReferenceSchema.index({ artifactId: 1, isCover: 1 });
 
 export type ArtifactReferenceDoc = InferSchemaType<typeof ArtifactReferenceSchema>;
-export const ArtifactReference = model(
-  "ArtifactReference",
-  ArtifactReferenceSchema,
-);
+export const ArtifactReference =
+  (mongoose.models["ArtifactReference"] as Model<ArtifactReferenceDoc>) ??
+  model("ArtifactReference", ArtifactReferenceSchema);

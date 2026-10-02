@@ -6,7 +6,7 @@
  * (docs/DB Schemas.md 4).
  */
 
-import { Schema, model, type InferSchemaType } from "mongoose";
+import mongoose, { Schema, model, type Model, type InferSchemaType } from "mongoose";
 
 const ProfileImageSchema = new Schema(
   {
@@ -72,4 +72,6 @@ const UserSchema = new Schema(
 UserSchema.index({ lifetimeXp: -1 });
 
 export type UserDoc = InferSchemaType<typeof UserSchema>;
-export const User = model("User", UserSchema);
+export const User =
+  (mongoose.models["User"] as Model<UserDoc>) ??
+  model("User", UserSchema);

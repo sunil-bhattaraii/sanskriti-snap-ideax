@@ -7,7 +7,7 @@
  *   - a StoryUnlock is proximity only, and is independent of both.
  */
 
-import { Schema, model, type InferSchemaType } from "mongoose";
+import mongoose, { Schema, model, type Model, type InferSchemaType } from "mongoose";
 
 /* ------------------------------------------------ verificationAttempts -- */
 
@@ -151,10 +151,9 @@ VerificationAttemptSchema.index({ artifactId: 1 });
 VerificationAttemptSchema.index({ status: 1, createdAt: 1 });
 
 export type VerificationAttemptDoc = InferSchemaType<typeof VerificationAttemptSchema>;
-export const VerificationAttempt = model(
-  "VerificationAttempt",
-  VerificationAttemptSchema,
-);
+export const VerificationAttempt =
+  (mongoose.models["VerificationAttempt"] as Model<VerificationAttemptDoc>) ??
+  model("VerificationAttempt", VerificationAttemptSchema);
 
 /* ------------------------------------------------------------ discoveries */
 
@@ -183,7 +182,9 @@ DiscoverySchema.index({ userId: 1, artifactId: 1 }, { unique: true });
 DiscoverySchema.index({ artifactId: 1, createdAt: -1 });
 
 export type DiscoveryDoc = InferSchemaType<typeof DiscoverySchema>;
-export const Discovery = model("Discovery", DiscoverySchema);
+export const Discovery =
+  (mongoose.models["Discovery"] as Model<DiscoveryDoc>) ??
+  model("Discovery", DiscoverySchema);
 
 /* ---------------------------------------------------------- storyUnlocks - */
 
@@ -212,7 +213,9 @@ StoryUnlockSchema.index({ userId: 1, artifactId: 1 }, { unique: true });
 StoryUnlockSchema.index({ userId: 1 });
 
 export type StoryUnlockDoc = InferSchemaType<typeof StoryUnlockSchema>;
-export const StoryUnlock = model("StoryUnlock", StoryUnlockSchema);
+export const StoryUnlock =
+  (mongoose.models["StoryUnlock"] as Model<StoryUnlockDoc>) ??
+  model("StoryUnlock", StoryUnlockSchema);
 
 /* -------------------------------------------------------- idempotencyKeys - */
 
@@ -234,4 +237,6 @@ const IdempotencyKeySchema = new Schema(
 IdempotencyKeySchema.index({ key: 1, userId: 1 }, { unique: true });
 
 export type IdempotencyKeyDoc = InferSchemaType<typeof IdempotencyKeySchema>;
-export const IdempotencyKey = model("IdempotencyKey", IdempotencyKeySchema);
+export const IdempotencyKey =
+  (mongoose.models["IdempotencyKey"] as Model<IdempotencyKeyDoc>) ??
+  model("IdempotencyKey", IdempotencyKeySchema);

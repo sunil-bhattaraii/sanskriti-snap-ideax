@@ -7,7 +7,7 @@
  * (docs/DB Schemas.md 21a).
  */
 
-import { Schema, model, type InferSchemaType } from "mongoose";
+import mongoose, { Schema, model, type Model, type InferSchemaType } from "mongoose";
 
 /* ----------------------------------------------------------------- quests */
 
@@ -37,7 +37,9 @@ const QuestSchema = new Schema(
 );
 
 export type QuestDoc = InferSchemaType<typeof QuestSchema>;
-export const Quest = model("Quest", QuestSchema);
+export const Quest =
+  (mongoose.models["Quest"] as Model<QuestDoc>) ??
+  model("Quest", QuestSchema);
 
 /* ------------------------------------------------------ userQuestProgress */
 
@@ -54,10 +56,9 @@ const UserQuestProgressSchema = new Schema(
 UserQuestProgressSchema.index({ userId: 1, questId: 1 }, { unique: true });
 
 export type UserQuestProgressDoc = InferSchemaType<typeof UserQuestProgressSchema>;
-export const UserQuestProgress = model(
-  "UserQuestProgress",
-  UserQuestProgressSchema,
-);
+export const UserQuestProgress =
+  (mongoose.models["UserQuestProgress"] as Model<UserQuestProgressDoc>) ??
+  model("UserQuestProgress", UserQuestProgressSchema);
 
 /* ----------------------------------------------------------------- badges */
 
@@ -92,7 +93,9 @@ const BadgeSchema = new Schema(
 );
 
 export type BadgeDoc = InferSchemaType<typeof BadgeSchema>;
-export const Badge = model("Badge", BadgeSchema);
+export const Badge =
+  (mongoose.models["Badge"] as Model<BadgeDoc>) ??
+  model("Badge", BadgeSchema);
 
 const UserBadgeSchema = new Schema(
   {
@@ -114,7 +117,9 @@ UserBadgeSchema.index({ userId: 1, badgeId: 1 }, { unique: true });
 UserBadgeSchema.index({ discoveryId: 1 });
 
 export type UserBadgeDoc = InferSchemaType<typeof UserBadgeSchema>;
-export const UserBadge = model("UserBadge", UserBadgeSchema);
+export const UserBadge =
+  (mongoose.models["UserBadge"] as Model<UserBadgeDoc>) ??
+  model("UserBadge", UserBadgeSchema);
 
 /* --------------------------------------------------------- xpTransactions */
 
@@ -147,7 +152,9 @@ const XpTransactionSchema = new Schema(
 XpTransactionSchema.index({ userId: 1, createdAt: -1 });
 
 export type XpTransactionDoc = InferSchemaType<typeof XpTransactionSchema>;
-export const XpTransaction = model("XpTransaction", XpTransactionSchema);
+export const XpTransaction =
+  (mongoose.models["XpTransaction"] as Model<XpTransactionDoc>) ??
+  model("XpTransaction", XpTransactionSchema);
 
 /* ----------------------------------------------------- pointsTransactions */
 
@@ -193,7 +200,6 @@ PointsTransactionSchema.index({ userId: 1, createdAt: -1 });
 PointsTransactionSchema.index({ userId: 1, referenceId: 1 });
 
 export type PointsTransactionDoc = InferSchemaType<typeof PointsTransactionSchema>;
-export const PointsTransaction = model(
-  "PointsTransaction",
-  PointsTransactionSchema,
-);
+export const PointsTransaction =
+  (mongoose.models["PointsTransaction"] as Model<PointsTransactionDoc>) ??
+  model("PointsTransaction", PointsTransactionSchema);

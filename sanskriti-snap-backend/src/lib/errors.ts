@@ -130,6 +130,15 @@ export function toErrorResponse(err: unknown): NextResponse<ErrorBody> {
       if (keyPattern && "username" in keyPattern) {
         return errorResponse("USERNAME_TAKEN", "That username is already taken.");
       }
+      // One redemption per user per reward is enforced by the unique index on
+      // `redemptions`, not by the route's pre-check — two concurrent requests
+      // both pass that check, and the loser surfaces here.
+      if (keyPattern && "rewardId" in keyPattern) {
+        return errorResponse(
+          "REWARD_ALREADY_REDEEMED",
+          "You have already redeemed this reward.",
+        );
+      }
       return errorResponse(
         "INVALID_STATE_TRANSITION",
         "That record already exists.",

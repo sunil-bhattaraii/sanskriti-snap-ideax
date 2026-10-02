@@ -13,7 +13,12 @@ import { requireAuthContext } from "@/lib/auth";
 import { connect } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
 import { Artifact } from "@/models/artifact";
-import { UserBadge } from "@/models/gamification";
+import {
+  PointsTransaction,
+  Quest,
+  UserBadge,
+  UserQuestProgress,
+} from "@/models/gamification";
 import { Discovery, VerificationAttempt } from "@/models/verification";
 import { User } from "@/models/user";
 
@@ -59,8 +64,52 @@ export async function GET(_request: Request, context: RouteContext) {
       throw ApiError.notFound("Discovery data incomplete.");
     }
 
-    // Compute points awarded from ledger or use a sensible default
-    const pointsAwarded = 50; // TODO: derive from points transaction ledger if needed
+    // The ledger is the source of truth for what this discovery actually paid
+    // out (docs/API Contract.md 11.2), so read it rather than assuming a rate.
+    const pointsTx = await PointsTransaction.findOne({
+      userId: user._id,
+      referenceId: discoveryId,
+      reason: "DISCOVERY",
+    }).lean();
+    const pointsAwarded = pointsTx?.amount ?? 0;
+
+    // The award transaction does not record which quest a discovery completed,
+    // so reconstruct it: the most recently completed quest that requires this
+    // artifact. Report null rather than guessing when none matches.
+    let questReceipt: {
+      id: string;
+      name: string;
+      discoveredCount: number;
+      artifactCount: number;
+    } | null = null;
+
+    const questProgress = await UserQuestProgress.find({
+      userId: user._id,
+      completedAt: { $ne: null },
+    })
+      .sort({ completedAt: -1 })
+      .limit(5)
+      .lean();
+
+    for (const progress of questProgress) {
+      const quest = await Quest.findById(progress.questId)
+        .select("name artifactIds")
+        .lean();
+      if (!quest) continue;
+
+      const requiresArtifact = quest.artifactIds.some(
+        (artifactId) => String(artifactId) === String(discovery.artifactId),
+      );
+      if (!requiresArtifact) continue;
+
+      questReceipt = {
+        id: String(quest._id),
+        name: quest.name,
+        discoveredCount: progress.discoveredArtifactIds.length,
+        artifactCount: quest.artifactIds.length,
+      };
+      break;
+    }
 
     return NextResponse.json({
       id: String(discovery._id),
@@ -74,7 +123,7 @@ export async function GET(_request: Request, context: RouteContext) {
         coverImageUrl: artifact.coverImageUrl ?? null,
       },
       verificationAttemptId: String(discovery.verificationAttemptId),
-      quest: null, // TODO: populate if discovery completes a quest
+      quest: questReceipt,
       badge: awardedBadge
         ? {
             name: awardedBadge.badgeId?.name ?? "Unknown Badge",
