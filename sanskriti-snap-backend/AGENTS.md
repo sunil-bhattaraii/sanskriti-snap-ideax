@@ -118,7 +118,20 @@ users' `accountStatus` never appear in a response. `clerkUserId` and `embedding`
 are additionally `select: false` as defence in depth.
 
 **Transactions need a replica set.** Atlas SRV qualifies; a standalone local
-`mongod` does not and will throw on the first `withTransaction()` write.
+`mongod` does not and will throw at the first `withTransaction()` write.
+
+**Every write in a transaction needs the `session`.** One un-annotated
+operation escapes the transaction and survives its abort — XP granted against a
+discovery that rolled back. Pass `{ session }` to every op; the discovery
+transaction touches seven collections and needs all seven.
+
+**Never swallow an error inside a `withTransaction` callback.** If the callback
+catches a failed write and returns normally, the driver cannot tell the
+transaction was aborted, so it retries **indefinitely** — the request hangs
+rather than returning 500. This also means the callback may run more than once,
+so it must be idempotent and Mongo-only: no Cloudinary upload, no `fetch`, no
+in-memory counter. Do external work before opening the transaction. Do not
+`Promise.all` inside it; the driver documents that as undefined behaviour.
 
 ## Layout
 
