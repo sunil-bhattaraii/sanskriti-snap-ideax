@@ -224,11 +224,13 @@ requires verification idempotency.
   and the client map library expects `[lng, lat]`.
 * Enum casing differs between the old PostgreSQL schema and the v2.0 model.
   `DB Schemas.md` uses `UPPER_SNAKE_CASE` (`"TEMPLE"`, `"PUBLISHED"`). The API uses
-  the same casing as the schema, with one exception recorded in §11.7: artifact
-  status is `DRAFT | PUBLISHED | ARCHIVED | DISABLED`, following
-  `Backend TDS.md` §16 rather than `DB Schemas.md` §5. The client's
-  `getCategoryIcon` switch and rarity mapping must be updated accordingly — see
-  §12.3.
+  the same casing as the schema, with two exceptions. Artifact status is
+  `DRAFT | PUBLISHED | ARCHIVED | DISABLED`, following `Backend TDS.md` §16 rather
+  than `DB Schemas.md` §5 (§11.7). `rarity` is TitleCase —
+  `"Common" | "Rare" | "Epic" | "Legendary"` (§11.5) — because it is a display
+  label the client renders verbatim, not a discriminator the client switches on.
+  Do not "fix" either one to match the surrounding casing. The client's
+  `getCategoryIcon` switch must be updated accordingly — see §12.3.
 
 ---
 
@@ -257,8 +259,11 @@ type ArtifactSummary = {
   warnings: string | null;
   discoveryCount: number;
   coverImageUrl: string | null;        // denormalised first reference image; backend-maintained
+  rarity: Rarity;                      // uploader-set, stored on the artifact (§11.5)
   distanceMeters: number | null;       // present only when the request supplied a location
 };
+
+type Rarity = "Common" | "Rare" | "Epic" | "Legendary";   // TitleCase — see §2.8
 ```
 
 **`ArtifactSummary` deliberately carries only `coverImageUrl`, not
@@ -1264,12 +1269,11 @@ GET /api/v1/discoveries?limit=20&cursor=...
 }
 ```
 
-**`rarity` is a server-derived DTO field.** The client currently maps artifact
-category to a rarity label in `progress.ts:getRarity`, with a hardcoded switch
-(`architecture`/`carving` → Rare, `statue` → Epic, `site` → Legendary, else
-Common). Rarity is presentational but derived from domain data, and a client-side
-switch will drift from the catalogue. Move it to the backend so admin-defined
-artifacts get consistent treatment. See §12.3.
+**`rarity` is a stored field on the artifact, set by the uploader** — not derived
+from `discoveryCount`, from `category`, or by the client. It is returned verbatim
+as authored. The client currently maps artifact category to a rarity label in
+`progress.ts:getRarity` with a hardcoded switch; that switch is deleted, not
+reimplemented server-side. Full decision and rationale in §11.5.
 
 ## 7.2 `GET /api/v1/discoveries/:id/receipt`
 
@@ -1466,6 +1470,7 @@ type CreateArtifactRequest = {
   slug?: string;                        // derived from name when omitted
   description: string;
   category: ArtifactCategory;
+  rarity?: Rarity;                      // uploader-set; defaults to "Common"
   tags?: string[];
   latitude: number;
   longitude: number;
@@ -1775,12 +1780,41 @@ the client's "make public" toggle is to keep working, it needs its own endpoint
 * §77 — `verificationSubmissions.*` replaced with `verificationAttempts.*`.
 * §13 line 356 — `verificationSubmissions` replaced with `verificationAttempts`.
 
-## 11.5 `rarity` Has No Source
+## 11.5 `rarity` Has No Source — RESOLVED
 
-`CollectionItem.rarity` is computed client-side today and is not a field on
-`artifacts`. The contract places it in the discovery/collection DTO (§7.1). Either
-add a `rarity` field to the artifact document, or define it as a server-side
-derivation. It must not remain a client switch.
+**Decision: `rarity` is a stored, uploader-defined field on the artifact
+document.** Add it to `DB Schemas.md` §5:
+
+```text
+artifacts.rarity: "Common" | "Rare" | "Epic" | "Legendary"    // default "Common"
+```
+
+The uploader decides how rare an artifact is; it is authored data, not a
+derivation. `discoveryCount` measures how many people have found the artifact,
+which is the opposite of rarity in a small catalogue — the first few discoverers
+of an obscure carving would make it *look* common, and a much-photographed temple
+would inflate toward Legendary. Category is no better: `progress.ts:getRarity`
+hardcodes `statue → Epic`, but Patan has both a world-famous statue and dozens of
+minor ones, and only a human knows which is which.
+
+`rarity` is therefore:
+
+* **Set by the uploader** through `CreateArtifactRequest` / `UpdateArtifactRequest`
+  (§14), same as `xpReward` — another editorial judgement that is not derivable.
+* **Stored on `artifacts`**, not computed per request.
+* **Surfaced verbatim** in `ArtifactSummary` (§3.1) and `CollectionItem` (§7.3).
+  The client displays the string; it does not map category to a label.
+
+It is TitleCase (`"Rare"`, not `"RARE"`), unlike every other enum in this
+contract. That is recorded as an exception in §2.8.
+
+The alternative — a server-side switch on category — was rejected because it only
+moves the same hardcoded table from the client to the server. It would still be
+wrong for the artifacts where the category is not the interesting fact, and it
+would make rarity impossible to correct without a deploy.
+
+**The client-side switch is deleted, not duplicated.** `progress.ts:getRarity` is
+removed once the client reads the field (§12.3).
 
 ## 11.6 `CommunitySnaps` Needs an Explicit Publish Flag — RESOLVED
 
@@ -1904,7 +1938,9 @@ filter in JavaScript to find one artifact's distance
 
 ## 12.3 Client-side presentation logic that belongs on the server
 
-* `progress.ts:getRarity` — category to rarity switch. → server (§7.1).
+* `progress.ts:getRarity` — category to rarity switch. **Delete it.** Rarity is a
+  stored, uploader-set field returned by the API (§11.5), not a computation to
+  move to the server.
 * `progress.ts:fetchQuests` — counts quest artifacts in JavaScript to build
   `total_progress`. → server (§7.4).
 * `discovery-success.tsx:65` — `pointsEarned: discovery.xp_awarded`, awarding XP
@@ -1971,6 +2007,7 @@ users. Not returned by the new contract (§7.6).
 | 3 | API versioning. | **Versioned.** Fixed `/api/v1` prefix, v2 served alongside v1. | §2.1 |
 | 4 | CV processing model. | **Synchronous.** No queue, no pending state, no polling. Client re-POSTs the same `Idempotency-Key` on failure. | §6.2, §6.2a |
 | 9 | Artifact status vocabulary. | **`DRAFT | PUBLISHED | ARCHIVED | DISABLED`.** Adopts `Backend TDS.md` §16, keeps `ARCHIVED`. | §11.7 |
+| 12 | Where does `rarity` come from? | **A stored, uploader-set field on `artifacts`.** Not derived from `discoveryCount` or `category`; the client switch is deleted. | §11.5 |
 
 ### Propagation status
 
@@ -2040,6 +2077,8 @@ distinguish "points spent" from "points revoked".
 - [ ] `radiusMeters` capped server-side on all geo endpoints (§12.2).
 - [ ] Artifact `status` filters match `PUBLISHED`; no `DRAFT` artifact is
       discoverable, searchable, or returnable (§11.7).
+- [ ] `rarity` is stored on the artifact and returned verbatim; no route derives it
+      from `category` or `discoveryCount` (§11.5).
 - [ ] Verification submission is synchronous: no `PENDING` or `PROCESSING` row is
       ever persisted, and no endpoint returns `202` for verification (§6.2).
 - [ ] The CV call is bounded by an 8 s per-attempt timeout with at most 3 retries,

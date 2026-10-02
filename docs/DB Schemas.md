@@ -207,6 +207,12 @@ Artifacts do not have parent/child relationships.
 
   tags: string[],
 
+  rarity:
+    "Common" |
+    "Rare" |
+    "Epic" |
+    "Legendary",
+
   location: {
     type: "Point",
     coordinates: [number, number]
@@ -281,6 +287,9 @@ Example:
 * `verificationRadiusMeters > 0`
 * `xpReward >= 0`
 * `discoveryCount >= 0`
+* `rarity` is `Common | Rare | Epic | Legendary`; defaults to `Common`. It is
+  uploader-authored, not derived from `discoveryCount` or `category`
+  (`API Contract.md` §11.5). TitleCase is deliberate — it is a display label.
 * `cvConfiguration.threshold` must be between `0` and `1`.
 * `cvConfiguration.topK >= 1`.
 * `requiresCV = false` may have `cvConfiguration = null`.
