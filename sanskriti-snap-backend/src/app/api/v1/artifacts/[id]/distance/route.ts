@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { Types } from "mongoose";
 
 import { requireAuthContext } from "@/lib/auth";
-import { distanceMeters } from "@/lib/contracts";
+import { DistanceQuery, distanceMeters } from "@/lib/contracts";
 import { connect } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
 import { Artifact } from "@/models/artifact";
@@ -15,25 +16,36 @@ export async function GET(
     await connect();
 
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const latitude = Number(searchParams.get("latitude"));
-    const longitude = Number(searchParams.get("longitude"));
-
-    if (
-      !Number.isFinite(latitude) ||
-      !Number.isFinite(longitude) ||
-      latitude < -90 ||
-      latitude > 90 ||
-      longitude < -180 ||
-      longitude > 180
-    ) {
-      throw ApiError.validation("Latitude and longitude are required.");
+    if (!Types.ObjectId.isValid(id)) {
+      throw ApiError.notFound("Artifact not found.");
     }
 
-    const artifact = await Artifact.findById(id).lean();
-    if (!artifact) throw ApiError.notFound();
+    const { searchParams } = new URL(request.url);
+    const parsedQuery = DistanceQuery.safeParse({
+      latitude: searchParams.get("latitude"),
+      longitude: searchParams.get("longitude"),
+    });
 
-    const [artifactLongitude, artifactLatitude] = (artifact.location as { coordinates: number[] }).coordinates;
+    if (!parsedQuery.success) {
+      throw ApiError.validation("Latitude and longitude must be valid coordinates.", {
+        fields: Object.fromEntries(
+          Object.entries(parsedQuery.error.flatten().fieldErrors).map(
+            ([key, value]) => [key, value?.[0] ?? "Invalid coordinate"],
+          ),
+        ),
+      });
+    }
+
+    const { latitude, longitude } = parsedQuery.data;
+
+    const artifact = await Artifact.findById(id).lean();
+    if (!artifact || artifact.status !== "PUBLISHED") {
+      throw ApiError.notFound("Artifact not found.");
+    }
+
+    const [artifactLongitude, artifactLatitude] = (
+      artifact.location as { coordinates: number[] }
+    ).coordinates;
     const distance = distanceMeters(
       { latitude, longitude },
       { latitude: artifactLatitude, longitude: artifactLongitude },
@@ -54,7 +66,7 @@ export async function GET(
       withinStoryUnlockRadius,
       shortfallMeters: withinVerificationRadius
         ? 0
-        : Math.max(0, Math.ceil(verificationRadiusMeters - distance)),
+        : Math.max(0, Math.ceil(distance - verificationRadiusMeters)),
     });
   } catch (err) {
     return toErrorResponse(err);

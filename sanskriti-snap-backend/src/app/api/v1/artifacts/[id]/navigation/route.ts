@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { Types } from "mongoose";
 
 import { requireAuthContext } from "@/lib/auth";
 import { connect } from "@/lib/db";
@@ -13,13 +14,19 @@ export async function GET(
     await requireAuthContext();
     await connect();
     const { id } = await params;
-    const artifact = await Artifact.findById(id).lean();
 
-    if (!artifact) {
-      throw ApiError.notFound();
+    if (!Types.ObjectId.isValid(id)) {
+      throw ApiError.notFound("Artifact not found.");
     }
 
-    const [longitude, latitude] = (artifact.location as { coordinates: number[] }).coordinates;
+    const artifact = await Artifact.findById(id).lean();
+    if (!artifact || artifact.status !== "PUBLISHED") {
+      throw ApiError.notFound("Artifact not found.");
+    }
+
+    const [longitude, latitude] = (
+      artifact.location as { coordinates: number[] }
+    ).coordinates;
 
     return NextResponse.json({
       artifactId: String(artifact._id),

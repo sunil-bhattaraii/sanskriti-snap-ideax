@@ -1,15 +1,23 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { Types } from "mongoose";
 
-import { getAuthContext, requireAuthContext } from "@/lib/auth";
+import { getAuthContext, requireAdmin } from "@/lib/auth";
 import {
+  DistanceQuery,
+  distanceMeters,
   type ArtifactDetail,
   type ArtifactSummary,
+  type VerificationStatus,
 } from "@/lib/contracts";
 import { connect } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
 import { Artifact, ArtifactReference } from "@/models/artifact";
-import { StoryUnlock } from "@/models/verification";
+import { Quest } from "@/models/gamification";
+import {
+  Discovery,
+  StoryUnlock,
+  VerificationAttempt,
+} from "@/models/verification";
 
 function parseLocationQuery(searchParams: URLSearchParams) {
   const latitude = searchParams.get("latitude");
@@ -21,20 +29,23 @@ function parseLocationQuery(searchParams: URLSearchParams) {
     );
   }
 
-  const parsed = {
-    latitude: Number(latitude),
-    longitude: Number(longitude),
-  };
+  const parsed = DistanceQuery.safeParse({
+    latitude,
+    longitude,
+  });
 
-  if (!Number.isFinite(parsed.latitude) || !Number.isFinite(parsed.longitude)) {
-    throw ApiError.validation("Latitude and longitude must be valid numbers.");
+  if (!parsed.success) {
+    throw ApiError.validation("Latitude and longitude must be valid coordinates.", {
+      fields: Object.fromEntries(
+        Object.entries(parsed.error.flatten().fieldErrors).map(([key, value]) => [
+          key,
+          value?.[0] ?? "Invalid coordinate",
+        ]),
+      ),
+    });
   }
 
-  if (parsed.latitude < -90 || parsed.latitude > 90 || parsed.longitude < -180 || parsed.longitude > 180) {
-    throw ApiError.validation("Latitude and longitude are out of range.");
-  }
-
-  return parsed;
+  return parsed.data;
 }
 
 type ArtifactDetailDoc = {
@@ -92,64 +103,104 @@ export async function GET(
     await connect();
     const ctx = await getAuthContext();
     const { id } = await params;
+
+    if (!Types.ObjectId.isValid(id)) {
+      throw ApiError.notFound("Artifact not found.");
+    }
+
     const location = parseLocationQuery(new URL(request.url).searchParams);
 
     const artifact = await Artifact.findById(id).lean();
     if (!artifact) {
-      throw ApiError.notFound();
+      throw ApiError.notFound("Artifact not found.");
     }
 
-    if (artifact.status !== "PUBLISHED" && !(ctx?.user && ctx.user.role === "ADMIN")) {
-      throw ApiError.notVisible();
+    if (
+      artifact.status !== "PUBLISHED" &&
+      !(ctx?.user && ctx.user.role === "ADMIN")
+    ) {
+      throw ApiError.notFound("Artifact not found.");
     }
 
     const refs = await ArtifactReference.find({ artifactId: artifact._id }).lean();
     const referenceImageUrls = refs.map((ref) => ref.imageUrl);
 
-    const storyUnlocked = !!(
-      ctx &&
-      (await StoryUnlock.exists({
-        userId: new Types.ObjectId(ctx.user._id),
-        artifactId: new Types.ObjectId(artifact._id),
-      }))
-    );
+    const userId = ctx?.user ? ctx.user._id : null;
+
+    let storyUnlocked = false;
+    let discovered = false;
+    let discoveredAt: string | null = null;
+    let questIds: string[] = [];
+    let attemptSummary: {
+      latestAttemptId: string | null;
+      latestAttemptStatus: VerificationStatus | null;
+    } = {
+      latestAttemptId: null,
+      latestAttemptStatus: null,
+    };
+
+    if (userId) {
+      const [storyUnlockDoc, discoveryDoc, questDocs, latestAttemptDoc] =
+        await Promise.all([
+          StoryUnlock.exists({ userId, artifactId: artifact._id }),
+          Discovery.findOne({ userId, artifactId: artifact._id }).lean(),
+          Quest.find({ artifactIds: artifact._id, status: "ACTIVE" })
+            .select("_id")
+            .lean(),
+          VerificationAttempt.findOne({ userId, artifactId: artifact._id })
+            .sort({ submittedAt: -1 })
+            .select("_id status")
+            .lean(),
+        ]);
+
+      storyUnlocked = !!storyUnlockDoc;
+      discovered = !!discoveryDoc;
+      discoveredAt = discoveryDoc
+        ? new Date(discoveryDoc.discoveredAt).toISOString()
+        : null;
+      questIds = questDocs.map((q) => String(q._id));
+      if (latestAttemptDoc) {
+        attemptSummary = {
+          latestAttemptId: String(latestAttemptDoc._id),
+          latestAttemptStatus: latestAttemptDoc.status as VerificationStatus,
+        };
+      }
+    }
 
     const summary = toArtifactSummary(artifact as unknown as ArtifactDetailDoc);
-    const detail: ArtifactDetail = storyUnlocked
-      ? {
-          ...summary,
-          altitudeMeters: artifact.altitudeMeters ?? null,
-          referenceImageUrls,
-          storyUnlocked: true,
-          discovered: false,
-          discoveredAt: null,
-          questIds: [],
-          attemptSummary: {
-            latestAttemptId: null,
-            latestAttemptStatus: null,
-          },
-          story: String(artifact.story ?? ""),
-        }
-      : {
-          ...summary,
-          altitudeMeters: artifact.altitudeMeters ?? null,
-          referenceImageUrls,
-          storyUnlocked: false,
-          discovered: false,
-          discoveredAt: null,
-          questIds: [],
-          attemptSummary: {
-            latestAttemptId: null,
-            latestAttemptStatus: null,
-          },
-        };
+    const base = {
+      ...summary,
+      altitudeMeters: artifact.altitudeMeters ?? null,
+      referenceImageUrls,
+      discovered,
+      discoveredAt,
+      questIds,
+      attemptSummary,
+    };
+
+    let detail: ArtifactDetail;
+    if (storyUnlocked) {
+      detail = {
+        ...base,
+        storyUnlocked: true,
+        story: String(artifact.story ?? ""),
+      };
+    } else {
+      detail = {
+        ...base,
+        storyUnlocked: false,
+      };
+    }
 
     if (location) {
-      const [longitude, latitude] = artifact.location.coordinates;
+      const [artifactLongitude, artifactLatitude] = (
+        artifact.location as { coordinates: number[] }
+      ).coordinates;
       detail.distanceMeters = Math.round(
-        (Math.sqrt(
-          (latitude - location.latitude) ** 2 + (longitude - location.longitude) ** 2,
-        ) * 111_000) || 0,
+        distanceMeters(
+          { latitude: location.latitude, longitude: location.longitude },
+          { latitude: artifactLatitude, longitude: artifactLongitude },
+        ),
       );
     }
 
@@ -162,7 +213,7 @@ export async function GET(
 export async function PATCH() {
   try {
     await connect();
-    await requireAuthContext();
+    await requireAdmin();
     return NextResponse.json({ message: "Not implemented yet." }, { status: 501 });
   } catch (err) {
     return toErrorResponse(err);
