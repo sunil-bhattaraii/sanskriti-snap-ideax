@@ -550,6 +550,24 @@ Only `displayName` and `profileImagePublicId` are writable. Attempting
 `lifetimeXp`, `role`, or `accountStatus` returns `422 VALIDATION_FAILED` — the
 schema is strict, not filtered, so a client bug surfaces loudly.
 
+`profileImagePublicId` is the Cloudinary public id returned by
+`POST /api/v1/media/sign`; the CDN URL is derived server-side, so a client
+cannot point its avatar at an arbitrary host.
+
+`profileImage` has two provenances and the stored `publicId` distinguishes them.
+A user who has never uploaded an avatar carries the Clerk-hosted image, captured
+at provisioning and stored as `{ url, publicId: null }` — displayable, but not a
+Cloudinary asset. An avatar uploaded through `media/sign` carries a real
+`publicId`. The Clerk copy is kept rather than dropped because `profileImageUrl`
+appears on the leaderboard (§7.6) and a client can only read its *own* Clerk
+user, so other users' rows have no fallback. It can go stale if the user changes
+their avatar in Clerk; that is accepted at this scale.
+
+All three `PATCH` routes in this section respond with the updated `UserProfile`,
+so the client replaces its cached profile from the mutation rather than issuing
+a follow-up `GET /api/v1/me`. `PATCH /api/v1/me` with `{}` is a no-op that
+returns the current profile; it is not an error.
+
 ### `PATCH /api/v1/me/username`
 
 ```json
@@ -570,6 +588,14 @@ UX affordances, but the unique index is what actually guarantees correctness.
 `404` is not returned for "taken" — availability is a normal answer, not an error.
 Excludes the caller's own current username.
 
+The query is validated with the same rules as the claim itself (3–30 chars,
+`^[a-zA-Z0-9_]+$`), so the probe cannot disagree with `PATCH /me/username` about
+what is even a candidate. Matching is **case-sensitive**, because
+`users.username` carries no collation and `Asha` / `asha` are therefore distinct
+rows; a case-insensitive probe would answer "taken" and then let the claim
+succeed. If usernames should be case-insensitive, that is an index change in
+`DB Schemas.md`, not a route change.
+
 ### `GET /api/v1/me/summary`
 
 ```json
@@ -588,6 +614,16 @@ Excludes the caller's own current username.
 
 Replaces the `user_quest_progress` read on the profile screen. Aggregated in one
 query set rather than the client issuing a separate progress fetch.
+
+Field definitions, so the client does not have to infer them:
+
+* `questCount` is the number of quests the caller has **progress on**, not the
+  number that exist — the profile screen shows "2 of 5". `completedQuestCount`
+  is the subset with `completedAt` set.
+* `rank` and `totalUsers` are both computed over `accountStatus: "ACTIVE"`, so
+  they are consistent with each other and with the leaderboard (§7.6). Rank is
+  all-time and **competition-ranked**: users level on XP share a rank, so it is
+  not an array index.
 
 ---
 

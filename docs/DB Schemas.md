@@ -109,8 +109,8 @@ The Sanskriti Snap database owns application-specific profile, role, gamificatio
   displayName: string,
 
   profileImage: {
-    url: string,
-    publicId: string
+    url: string,              // always displayable; never a signed URL
+    publicId: string | null   // null when the asset is not ours to manage
   } | null,
 
   role: "USER" | "EXPERT" | "ADMIN",

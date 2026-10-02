@@ -486,6 +486,30 @@ export type UserProfile = {
   createdAt: string;
 };
 
+/**
+ * docs/API Contract.md 4. `available` is a normal answer, never an error: a
+ * taken username is a 200, not a 404.
+ */
+export type UsernameAvailability = {
+  username: string;
+  available: boolean;
+};
+
+export type ProfileSummary = {
+  profile: UserProfile;
+  stats: {
+    discoveryCount: number;
+    /** Quests the caller has progress on — not the number that exist. */
+    questCount: number;
+    completedQuestCount: number;
+    badgeCount: number;
+    /** All-time XP, competition-ranked: users level on XP share a rank. */
+    rank: number;
+    /** The population `rank` is computed over, so rank <= totalUsers. */
+    totalUsers: number;
+  };
+};
+
 export type QuestSummary = {
   id: string;
   name: string;

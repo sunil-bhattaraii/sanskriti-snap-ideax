@@ -69,8 +69,12 @@ async function provisionUser(clerkUserId: string): Promise<AuthContext["user"]> 
       clerkUser?.username ||
       email.split("@")[0] ||
       "Explorer",
+    // Clerk hosts the avatar, so `url` is real and displayable, but it is not a
+    // Cloudinary asset and there is nothing for us to delete — hence a null
+    // `publicId`. Non-null only for an image uploaded through
+    // POST /api/v1/media/sign (docs/DB Schemas.md 4).
     profileImage: clerkUser?.imageUrl
-      ? { url: clerkUser.imageUrl, publicId: clerkUser.imageUrl }
+      ? { url: clerkUser.imageUrl, publicId: null }
       : null,
   });
 
@@ -92,6 +96,9 @@ function toAuthUser(doc: InstanceType<typeof User>): AuthContext["user"] {
 /**
  * Resolves the caller, or null when signed out. Safe to call on routes with
  * optional auth, where an anonymous caller gets a reduced payload.
+ *
+ * A `DELETED` account resolves to null too: it is anonymous everywhere, not a
+ * signed-in user carrying a flag.
  */
 export async function getAuthContext(): Promise<AuthContext | null> {
   const { userId } = await auth();
@@ -102,6 +109,8 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   const existing = await User.findOne({ clerkUserId: userId }).select(
     "+clerkUserId",
   );
+
+  if (existing && existing.accountStatus === "DELETED") return null;
 
   const user = existing ? toAuthUser(existing) : await provisionUser(userId);
   return { clerkUserId: userId, user };
