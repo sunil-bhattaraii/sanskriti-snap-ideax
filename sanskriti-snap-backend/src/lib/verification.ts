@@ -14,6 +14,7 @@
  */
 
 import { Types } from "mongoose";
+import { grantDiscoveryAwards } from "./awards";
 import { assertMediaOwnership, imageUrl } from "./cloudinary";
 import type {
   GeoLocation,
@@ -26,14 +27,6 @@ import { withTransaction } from "./db";
 import { isCvConfigured } from "./env";
 import { ApiError } from "./errors";
 import { Artifact } from "@/models/artifact";
-import {
-  Badge,
-  PointsTransaction,
-  Quest,
-  UserBadge,
-  UserQuestProgress,
-  XpTransaction,
-} from "@/models/gamification";
 import { User } from "@/models/user";
 import {
   Discovery,
@@ -362,264 +355,22 @@ export async function processVerificationAttempt(
       { session },
     );
 
-    // b. Create Discovery
-    const [discovery] = await Discovery.create(
-      [
-        {
-          userId,
-          artifactId: artifact._id,
-          verificationAttemptId: attempt._id,
-          discoveredAt: new Date(),
-          xpAwarded: artifact.xpReward,
-        },
-      ],
-      { session },
-    );
-
-    // c. Link discovery to attempt
-    await VerificationAttempt.findByIdAndUpdate(
-      attempt._id,
-      { $set: { discoveryId: discovery._id } },
-      { session },
-    );
-
-    // d. Increment artifact discoveryCount
-    await Artifact.findByIdAndUpdate(
-      artifact._id,
-      { $inc: { discoveryCount: 1 } },
-      { session },
-    );
-
-    // e. Discovery XP and Points ledger
-    const discoveryXp = artifact.xpReward;
-    const discoveryPoints = artifact.xpReward;
-    let runningPointsBalance = user.pointsBalance + discoveryPoints;
-    let totalXpGained = discoveryXp;
-
-    await XpTransaction.create(
-      [
-        {
-          userId,
-          amount: discoveryXp,
-          type: "DISCOVERY",
-          referenceType: "DISCOVERY",
-          referenceId: discovery._id,
-        },
-      ],
-      { session },
-    );
-
-    await PointsTransaction.create(
-      [
-        {
-          userId,
-          type: "EARNED",
-          amount: discoveryPoints,
-          balanceAfter: runningPointsBalance,
-          reason: "DISCOVERY",
-          referenceId: discovery._id,
-        },
-      ],
-      { session },
-    );
-
-    // f. Update Quests Progress & Completion
-    let completedQuestReceipt: {
-      id: string;
-      discoveredCount: number;
-      artifactCount: number;
-    } | null = null;
-
-    const affectedQuests = await Quest.find({
-      status: "ACTIVE",
-      artifactIds: artifact._id,
-    }).session(session);
-
-    for (const quest of affectedQuests) {
-      let progress = await UserQuestProgress.findOne({
-        userId,
-        questId: quest._id,
-      }).session(session);
-
-      if (!progress) {
-        progress = new UserQuestProgress({
-          userId,
-          questId: quest._id,
-          discoveredArtifactIds: [],
-        });
-      }
-
-      const alreadyTracked = progress.discoveredArtifactIds.some(
-        (id) => String(id) === String(artifact._id),
-      );
-
-      if (!alreadyTracked) {
-        progress.discoveredArtifactIds.push(artifact._id as Types.ObjectId);
-      }
-
-      const allFound = quest.artifactIds.every((reqId) =>
-        progress.discoveredArtifactIds.some(
-          (dId) => String(dId) === String(reqId),
-        ),
-      );
-
-      if (allFound && !progress.completedAt) {
-        progress.completedAt = new Date();
-
-        if (quest.xpReward > 0) {
-          runningPointsBalance += quest.xpReward;
-          totalXpGained += quest.xpReward;
-
-          await XpTransaction.create(
-            [
-              {
-                userId,
-                amount: quest.xpReward,
-                type: "QUEST_COMPLETION",
-                referenceType: "QUEST",
-                referenceId: quest._id,
-              },
-            ],
-            { session },
-          );
-
-          await PointsTransaction.create(
-            [
-              {
-                userId,
-                type: "EARNED",
-                amount: quest.xpReward,
-                balanceAfter: runningPointsBalance,
-                reason: "QUEST_COMPLETION",
-                referenceId: quest._id,
-              },
-            ],
-            { session },
-          );
-        }
-
-        if (!completedQuestReceipt) {
-          completedQuestReceipt = {
-            id: String(quest._id),
-            discoveredCount: progress.discoveredArtifactIds.length,
-            artifactCount: quest.artifactIds.length,
-          };
-        }
-      }
-
-      await progress.save({ session });
-    }
-
-    // g. Update User cached stats
-    await User.findByIdAndUpdate(
+    // b-h. Discovery, ledgers, quests, user counters and badges. Shared with the
+    // admin approval path so the two can never drift apart.
+    const award = await grantDiscoveryAwards(session, {
       userId,
-      {
-        $inc: { lifetimeXp: totalXpGained },
-        $set: { pointsBalance: runningPointsBalance },
+      artifact: {
+        _id: artifact._id,
+        xpReward: artifact.xpReward,
+        category: artifact.category,
       },
-      { session },
-    );
-
-    // h. Evaluate Badges
-    let awardedBadgeReceipt: {
-      name: string;
-      iconUrl: string | null;
-    } | null = null;
-
-    const [activeBadges, userEarnedBadges, totalUserDiscoveries] =
-      await Promise.all([
-        Badge.find({ status: "ACTIVE" }).session(session),
-        UserBadge.find({ userId }).session(session),
-        Discovery.countDocuments({ userId }).session(session),
-      ]);
-
-    const earnedBadgeIds = new Set(
-      userEarnedBadges.map((ub) => String(ub.badgeId)),
-    );
-
-    for (const badge of activeBadges) {
-      if (earnedBadgeIds.has(String(badge._id))) continue;
-
-      let earned = false;
-      switch (badge.condition.type) {
-        case "FIRST_DISCOVERY":
-          earned = totalUserDiscoveries >= 1;
-          break;
-        case "DISCOVERY_COUNT":
-          earned = totalUserDiscoveries >= (badge.condition.value ?? 1);
-          break;
-        case "CATEGORY_COUNT": {
-          const targetCategory = (badge.condition.category ?? artifact.category) as
-            | "TEMPLE"
-            | "SITE"
-            | "STATUE"
-            | "CARVING"
-            | "ARCHITECTURE"
-            | "MONUMENT"
-            | "COURTYARD"
-            | "CULTURAL_OBJECT"
-            | "OTHER";
-
-          const categoryArtifacts = await Artifact.find({
-            category: targetCategory,
-          })
-            .select("_id")
-            .lean()
-            .session(session);
-
-          const categoryArtifactIds = categoryArtifacts.map((a) => a._id);
-          const categoryDiscoveries = await Discovery.countDocuments({
-            userId,
-            artifactId: { $in: categoryArtifactIds },
-          }).session(session);
-          earned = categoryDiscoveries >= (badge.condition.value ?? 1);
-          break;
-        }
-        case "QUEST_COMPLETION": {
-          if (badge.condition.questId) {
-            const qp = await UserQuestProgress.findOne({
-              userId,
-              questId: badge.condition.questId,
-              completedAt: { $ne: null },
-            }).session(session);
-            earned = Boolean(qp);
-          } else {
-            const anyCompleted = await UserQuestProgress.countDocuments({
-              userId,
-              completedAt: { $ne: null },
-            }).session(session);
-            earned = anyCompleted >= 1;
-          }
-          break;
-        }
-      }
-
-      if (earned) {
-        await UserBadge.create(
-          [
-            {
-              userId,
-              badgeId: badge._id,
-              discoveryId: discovery._id,
-              earnedAt: new Date(),
-            },
-          ],
-          { session },
-        );
-
-        if (!awardedBadgeReceipt) {
-          awardedBadgeReceipt = {
-            name: badge.name,
-            iconUrl: badge.iconUrl ?? null,
-          };
-        }
-      }
-    }
+      attemptId: attempt._id,
+    });
 
     return {
       attemptId: String(attempt._id),
       status: "VERIFIED",
-      discoveryId: String(discovery._id),
+      discoveryId: award.discoveryId,
       gps: {
         status: "PASSED",
         distanceMeters: roundedDistance,
@@ -632,12 +383,12 @@ export async function processVerificationAttempt(
         threshold: cvResultData.threshold,
         topK: cvResultData.topK,
       },
-      xpAwarded: discoveryXp,
-      pointsAwarded: discoveryPoints,
-      pointsBalance: runningPointsBalance,
+      xpAwarded: award.xpAwarded,
+      pointsAwarded: award.pointsAwarded,
+      pointsBalance: award.pointsBalance,
       newlyUnlockedStory,
-      quest: completedQuestReceipt,
-      badge: awardedBadgeReceipt,
+      quest: award.quest,
+      badge: award.badge,
     };
   });
 }

@@ -9,6 +9,9 @@
 
 import type {
   AccountStatus,
+  AdminContribution,
+  AdminVerificationAttempt,
+  ContributionStatus,
   CvStatus,
   GpsStatus,
   Role,
@@ -17,6 +20,63 @@ import type {
   VerificationStatus,
 } from "./contracts";
 import { imageUrl } from "./cloudinary";
+
+/**
+ * Admin view of an attempt. `flagReason` is `select: false` on the model, so a
+ * caller that wants it must ask for it explicitly; `cvVerification.model` and
+ * `matchedReferenceIds` are absent from the public DTO because they name the
+ * reference images a user's photo was compared against.
+ */
+export type AdminVerificationAttemptSource = VerificationAttemptSource & {
+  flagReason?: string | null;
+  cvVerification?:
+    | (NonNullable<VerificationAttemptSource["cvVerification"]> & {
+        model?: { name: string; version: string } | null;
+        matchedReferenceIds?: unknown[] | null;
+      })
+    | null;
+  review?: {
+    reviewedBy: unknown;
+    reviewedAt: Date | string;
+    decision: string;
+    note?: string | null;
+  } | null;
+};
+
+export function toAdminVerificationAttempt(
+  attempt: AdminVerificationAttemptSource,
+  artifact: ArtifactSummaryPickSource,
+  user: { _id: unknown; username: string; displayName: string },
+): AdminVerificationAttempt {
+  const base = toVerificationAttempt(attempt, artifact);
+
+  return {
+    ...base,
+    user: {
+      id: String(user._id),
+      username: user.username,
+      displayName: user.displayName,
+    },
+    cv: base.cv
+      ? {
+          ...base.cv,
+          model: attempt.cvVerification?.model ?? null,
+          matchedReferenceIds: (attempt.cvVerification?.matchedReferenceIds ?? []).map(
+            String,
+          ),
+        }
+      : null,
+    flagReason: attempt.flagReason ?? null,
+    review: attempt.review
+      ? {
+          reviewedBy: String(attempt.review.reviewedBy),
+          reviewedAt: new Date(attempt.review.reviewedAt).toISOString(),
+          decision: attempt.review.decision as "APPROVED" | "REJECTED",
+          note: attempt.review.note ?? null,
+        }
+      : null,
+  };
+}
 
 /**
  * Structural, rather than `InferSchemaType<typeof UserSchema>`: the mapper is
@@ -56,6 +116,72 @@ export function toUserProfile(user: UserProfileSource): UserProfile {
       radiusMeters: user.notifications?.radiusMeters ?? 1000,
     },
     createdAt: new Date(user.createdAt ?? 0).toISOString(),
+  };
+}
+
+/**
+ * Structural, for the same reason as `UserProfileSource`: the mapper is fed lean
+ * query results and reads a deliberate subset of the document.
+ *
+ * `photos` is stored as `{url, publicId}` pairs; only the URL is exposed. The
+ * publicId is a server-side handle used to delete the asset, and a reviewer has
+ * no action that takes one.
+ */
+export type AdminContributionSource = {
+  _id: unknown;
+  name: string;
+  description: string;
+  category: string;
+  tags?: string[] | null;
+  location: { coordinates: number[] };
+  humanReadableLocation?: string | null;
+  culturalSignificance: string;
+  photos?: { url: string }[] | null;
+  status: string;
+  submittedBy: unknown;
+  review?: {
+    reviewedBy: unknown;
+    reviewedAt: Date | string;
+    note?: string | null;
+  } | null;
+  officialArtifactId?: unknown | null;
+  createdAt: Date | string;
+};
+
+export function toAdminContribution(
+  contribution: AdminContributionSource,
+  user: { _id: unknown; username: string; displayName: string },
+): AdminContribution {
+  return {
+    id: String(contribution._id),
+    name: contribution.name,
+    description: contribution.description,
+    category: contribution.category,
+    tags: contribution.tags ?? [],
+    humanReadableLocation: contribution.humanReadableLocation ?? null,
+    culturalSignificance: contribution.culturalSignificance,
+    // GeoJSON is [longitude, latitude] — reversed at the API boundary so the
+    // stored order never reaches a client (AGENTS.md).
+    latitude: contribution.location.coordinates[1],
+    longitude: contribution.location.coordinates[0],
+    photos: (contribution.photos ?? []).map((photo) => photo.url),
+    status: contribution.status as ContributionStatus,
+    submittedBy: {
+      id: String(user._id),
+      username: user.username,
+      displayName: user.displayName,
+    },
+    review: contribution.review
+      ? {
+          reviewedBy: String(contribution.review.reviewedBy),
+          reviewedAt: new Date(contribution.review.reviewedAt).toISOString(),
+          note: contribution.review.note ?? null,
+        }
+      : null,
+    officialArtifactId: contribution.officialArtifactId
+      ? String(contribution.officialArtifactId)
+      : null,
+    createdAt: new Date(contribution.createdAt).toISOString(),
   };
 }
 

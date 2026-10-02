@@ -65,6 +65,30 @@ export type GpsStatus = z.infer<typeof GpsStatus>;
 export const CvStatus = z.enum(["NOT_REQUIRED", "PASSED", "FAILED"]);
 export type CvStatus = z.infer<typeof CvStatus>;
 
+/** docs/DB Schemas.md 19 — the contribution review lifecycle. */
+export const ContributionStatus = z.enum([
+  "DRAFT",
+  "SUBMITTED",
+  "UNDER_REVIEW",
+  "APPROVED",
+  "REJECTED",
+]);
+export type ContributionStatus = z.infer<typeof ContributionStatus>;
+
+/**
+ * docs/DB Schemas.md 20 — community snap visibility. `status` is the only
+ * visibility control on the model; there is deliberately no `visible` boolean
+ * beside it, because two representations of one fact can contradict each other
+ * (docs/API Contract.md 11.6).
+ */
+export const CommunitySnapStatus = z.enum([
+  "PENDING",
+  "ACTIVE",
+  "HIDDEN",
+  "REMOVED",
+]);
+export type CommunitySnapStatus = z.infer<typeof CommunitySnapStatus>;
+
 export const BadgeConditionType = z.enum([
   "FIRST_DISCOVERY",
   "DISCOVERY_COUNT",
@@ -281,6 +305,73 @@ export const CreateReferenceRequest = z
   })
   .strict();
 
+/**
+ * docs/API Contract.md 9 — pre-computed embedding path.
+ *
+ * The contract's `CreateEmbeddingRequest` carries the vector but no way to say
+ * *which* image it describes, and this path only has the artifact id, so the
+ * image is named explicitly here. `embeddingDimension` is asserted against the
+ * vector length rather than trusted: the CV service stamps a model version onto
+ * every embedding so vectors from different models are never compared, and a
+ * mismatched dimension is the same class of silent correctness bug.
+ */
+export const CreateEmbeddingRequest = z
+  .object({
+    imagePublicId: z.string().min(1),
+    embedding: z.array(z.number()).min(1),
+    embeddingDimension: z.number().int().positive(),
+    model: z
+      .object({ name: z.string().min(1), version: z.string().min(1) })
+      .strict(),
+    isCover: z.boolean().optional(),
+  })
+  .strict()
+  .refine((v) => v.embedding.length === v.embeddingDimension, {
+    message: "embedding must have exactly embeddingDimension values.",
+    path: ["embedding"],
+  });
+export type CreateEmbeddingRequest = z.infer<typeof CreateEmbeddingRequest>;
+
+/**
+ * docs/API Contract.md 9 — the reviewer's decision on a contribution.
+ *
+ * At most one of `artifactId` and `artifact` may be present: linking to an
+ * existing artifact and minting a new one are different acts, and a body that
+ * asks for both has no single meaning. Zero is deliberately allowed through
+ * validation so the route can answer the contract's specific
+ * `422 INVALID_CONTRIBUTION_TARGET` rather than a generic field error — the
+ * body is well-formed, it just does not say what to approve into.
+ */
+export const ContributionDecisionRequest = z
+  .object({
+    artifactId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
+    artifact: CreateArtifactRequest.optional(),
+    note: z.string().max(1000).nullish(),
+  })
+  .strict()
+  .refine((v) => (v.artifactId ? 1 : 0) + (v.artifact ? 1 : 0) <= 1, {
+    message: "Provide at most one of artifactId or artifact.",
+    path: ["artifactId"],
+  });
+export type ContributionDecisionRequest = z.infer<
+  typeof ContributionDecisionRequest
+>;
+
+/**
+ * `reason` is required: a rejected contribution the author cannot act on is a
+ * dead end, and the model has no dedicated field to hold it, so it is carried
+ * into the review note and the audit row.
+ */
+export const ContributionRejectionRequest = z
+  .object({
+    reason: z.string().min(1).max(500),
+    note: z.string().max(1000).nullish(),
+  })
+  .strict();
+export type ContributionRejectionRequest = z.infer<
+  typeof ContributionRejectionRequest
+>;
+
 export const CreateQuestRequest = z
   .object({
     name: z.string().min(1).max(120),
@@ -296,6 +387,14 @@ export const CreateQuestRequest = z
   })
   .strict();
 export type CreateQuestRequest = z.infer<typeof CreateQuestRequest>;
+
+/**
+ * docs/API Contract.md 9 — a partial of the create body. Nothing here is
+ * server-owned, so every field stays settable; the route rejects an empty
+ * patch rather than writing a no-op `adminActions` row.
+ */
+export const UpdateQuestRequest = CreateQuestRequest.partial();
+export type UpdateQuestRequest = z.infer<typeof UpdateQuestRequest>;
 
 export const BadgeCondition = z
   .object({
@@ -315,6 +414,9 @@ export const CreateBadgeRequest = z
   })
   .strict();
 export type CreateBadgeRequest = z.infer<typeof CreateBadgeRequest>;
+
+export const UpdateBadgeRequest = CreateBadgeRequest.partial();
+export type UpdateBadgeRequest = z.infer<typeof UpdateBadgeRequest>;
 
 export const XpAdjustmentRequest = z
   .object({
@@ -347,6 +449,86 @@ export const ReviewDecisionRequest = z
   })
   .strict();
 
+/**
+ * docs/API Contract.md 9 — resolving a FLAGGED verification attempt.
+ *
+ * `reason` is required on reject and forbidden on approve, so the two are
+ * separate schemas rather than one optional-field shape: a rejection without a
+ * reason is unauditable, and `rejectionReason` is copied straight from it.
+ */
+export const ApproveVerificationRequest = z
+  .object({ note: z.string().max(1000).nullish() })
+  .strict();
+export type ApproveVerificationRequest = z.infer<
+  typeof ApproveVerificationRequest
+>;
+
+export const RejectVerificationRequest = z
+  .object({
+    reason: z.string().min(1).max(500),
+    note: z.string().max(1000).nullish(),
+  })
+  .strict();
+export type RejectVerificationRequest = z.infer<
+  typeof RejectVerificationRequest
+>;
+
+/**
+ * docs/API Contract.md 9 — suspending a user.
+ *
+ * `suspendedUntil` is accepted because the contract's table names it, but the
+ * `users` collection has no field to hold it (docs/DB Schemas.md 4): a
+ * suspension is indefinite and lifting it is a separate admin act. The value is
+ * recorded in the `adminActions` metadata so the intent is not lost, and the
+ * route does not pretend to enforce an expiry it cannot store.
+ */
+export const SuspendUserRequest = z
+  .object({
+    reason: z.string().min(1).max(500),
+    suspendedUntil: z.iso.datetime({ offset: true }).nullish(),
+  })
+  .strict();
+export type SuspendUserRequest = z.infer<typeof SuspendUserRequest>;
+
+/**
+ * docs/API Contract.md 9 — hiding a community snap. A reason is required: the
+ * snap's owner can see the moderation outcome, and an unexplained hide is not
+ * actionable for them.
+ */
+export const HideCommunitySnapRequest = z
+  .object({ reason: z.string().min(1).max(500) })
+  .strict();
+export type HideCommunitySnapRequest = z.infer<
+  typeof HideCommunitySnapRequest
+>;
+
+/**
+ * docs/API Contract.md 9 — suspending a user.
+ *
+ * `suspendedUntil` is accepted because the contract's table names it, but the
+ * `users` collection has no field to hold it (docs/DB Schemas.md 4): a
+ * suspension is indefinite and lifting it is a separate admin act. The value is
+ * recorded in the `adminActions` metadata so the intent is not lost, and the
+ * route does not pretend to enforce an expiry it cannot store.
+ */
+export const SuspendUserRequest = z
+  .object({
+    reason: z.string().min(1).max(500),
+    suspendedUntil: z.iso.datetime({ offset: true }).nullish(),
+  })
+  .strict();
+export type SuspendUserRequest = z.infer<typeof SuspendUserRequest>;
+
+/** docs/API Contract.md 9 — hiding a community snap. A reason is required: the
+ * snap's owner can see the moderation outcome and an unexplained hide is not
+ * actionable for them. */
+export const HideCommunitySnapRequest = z
+  .object({ reason: z.string().min(1).max(500) })
+  .strict();
+export type HideCommunitySnapRequest = z.infer<
+  typeof HideCommunitySnapRequest
+>;
+
 /* ------------------------------------------------------------ query params */
 
 export const PaginationQuery = z.object({
@@ -354,6 +536,38 @@ export const PaginationQuery = z.object({
   cursor: z.string().optional(),
 });
 export type PaginationQuery = z.infer<typeof PaginationQuery>;
+
+/**
+ * docs/API Contract.md 9 — the admin user table. `q` matches username or
+ * display name as a substring; it is capped at 60 so a pathological pattern
+ * cannot turn the admin table into a full-collection scan on every keystroke.
+ */
+export const AdminUserQuery = PaginationQuery.extend({
+  q: z.string().trim().min(1).max(60).optional(),
+});
+export type AdminUserQuery = z.infer<typeof AdminUserQuery>;
+
+/** docs/API Contract.md 9 — the community moderation queue. */
+export const CommunityQuery = PaginationQuery.extend({
+  status: CommunitySnapStatus.optional(),
+});
+export type CommunityQuery = z.infer<typeof CommunityQuery>;
+
+/**
+ * docs/API Contract.md 9 — the admin user table. `q` matches username or
+ * display name as a substring; it is capped at 60 so a pathological pattern
+ * cannot turn the admin table into a full-collection scan on every keystroke.
+ */
+export const AdminUserQuery = PaginationQuery.extend({
+  q: z.string().trim().min(1).max(60).optional(),
+});
+export type AdminUserQuery = z.infer<typeof AdminUserQuery>;
+
+/** docs/API Contract.md 9 — the community moderation queue. */
+export const CommunityQuery = PaginationQuery.extend({
+  status: CommunitySnapStatus.optional(),
+});
+export type CommunityQuery = z.infer<typeof CommunityQuery>;
 
 /**
  * docs/API Contract.md 5.1 — the cap is server-side and non-negotiable. The
@@ -496,6 +710,76 @@ export type AdminVerificationAttempt = VerificationAttempt & {
     decision: "APPROVED" | "REJECTED";
     note: string | null;
   } | null;
+};
+
+/**
+ * docs/API Contract.md 9 — the result of resolving a `FLAGGED` attempt.
+ *
+ * The resolved attempt is returned as its full admin DTO, so the reviewer's list
+ * row can be updated in place instead of refetching the queue. Two fields are
+ * added on top:
+ *
+ *  - `alreadyResolved` is the idempotency signal. A repeat approval or rejection
+ *    returns the state the first one left and never re-awards, so the client can
+ *    tell "nothing happened because it was already done" from "this is the award
+ *    I just triggered".
+ *  - `award` carries what this call granted. It is null when nothing was
+ *    granted — a rejection, or an approval for a user who had already collected
+ *    the artifact by another route.
+ */
+export type AdminVerificationResolution = AdminVerificationAttempt & {
+  alreadyResolved: boolean;
+  award: {
+    xpAwarded: number;
+    pointsAwarded: number;
+    pointsBalance: number;
+    quest: { id: string; discoveredCount: number; artifactCount: number } | null;
+    badge: { name: string; iconUrl: string | null } | null;
+  } | null;
+};
+
+/**
+ * docs/API Contract.md 9 — a contribution as the reviewer sees it.
+ *
+ * `submittedBy` is flattened to the same `{id, username, displayName}` shape the
+ * verification queue uses, and `location` is flattened to flat
+ * `latitude`/`longitude`: the GeoJSON pair never reaches a client (AGENTS.md).
+ * `photos` are URLs, not `{url, publicId}` pairs — the Cloudinary id is a
+ * server-side handle for deletion, not something the reviewer acts on.
+ */
+export type AdminContribution = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  tags: string[];
+  humanReadableLocation: string | null;
+  culturalSignificance: string;
+  latitude: number;
+  longitude: number;
+  photos: string[];
+  status: ContributionStatus;
+  submittedBy: { id: string; username: string; displayName: string };
+  review: {
+    reviewedBy: string;
+    reviewedAt: string;
+    note: string | null;
+  } | null;
+  officialArtifactId: string | null;
+  createdAt: string;
+};
+
+/**
+ * The outcome of an approve or reject. `alreadyResolved` distinguishes "this is
+ * the decision I just made" from "a retry of a decision already taken" — the
+ * same signal the verification queue uses.
+ *
+ * The artifact the contribution now points at is `officialArtifactId`, already
+ * on `AdminContribution`. A second field carrying the same id would be two
+ * representations of one fact, free to disagree.
+ */
+export type AdminContributionResolution = AdminContribution & {
+  alreadyResolved: boolean;
 };
 
 export type UserProfile = {
