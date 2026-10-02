@@ -26,6 +26,13 @@ export const ErrorCode = {
   INVALID_STATE_TRANSITION: 409,
   GPS_OUTSIDE_RADIUS: 422,
   IMAGE_REQUIRED: 422,
+  /**
+   * docs/API Contract.md 9 — approving a contribution with neither an existing
+   * `artifactId` nor an inline `artifact` has nothing to approve it into. It is
+   * a 422 rather than a validation failure because the body is well-formed; it
+   * is the request's meaning that is missing, not its shape.
+   */
+  INVALID_CONTRIBUTION_TARGET: 422,
   CV_UNAVAILABLE: 503,
   CV_TIMEOUT: 504,
   RATE_LIMITED: 429,
@@ -122,6 +129,15 @@ export function toErrorResponse(err: unknown): NextResponse<ErrorBody> {
       const keyPattern = (err as { keyPattern?: Record<string, unknown> }).keyPattern;
       if (keyPattern && "username" in keyPattern) {
         return errorResponse("USERNAME_TAKEN", "That username is already taken.");
+      }
+      // One redemption per user per reward is enforced by the unique index on
+      // `redemptions`, not by the route's pre-check — two concurrent requests
+      // both pass that check, and the loser surfaces here.
+      if (keyPattern && "rewardId" in keyPattern) {
+        return errorResponse(
+          "REWARD_ALREADY_REDEEMED",
+          "You have already redeemed this reward.",
+        );
       }
       return errorResponse(
         "INVALID_STATE_TRANSITION",

@@ -7,7 +7,7 @@
  * `adminActions` audit trail are not retrofitted awkwardly later.
  */
 
-import { Schema, model, type InferSchemaType } from "mongoose";
+import mongoose, { Schema, model, type Model, type InferSchemaType } from "mongoose";
 
 /* --------------------------------------------------------- communitySnaps */
 
@@ -58,7 +58,9 @@ CommunitySnapSchema.index({ artifactId: 1, status: 1, createdAt: -1 });
 CommunitySnapSchema.index({ userId: 1, createdAt: -1 });
 
 export type CommunitySnapDoc = InferSchemaType<typeof CommunitySnapSchema>;
-export const CommunitySnap = model("CommunitySnap", CommunitySnapSchema);
+export const CommunitySnap =
+  (mongoose.models["CommunitySnap"] as Model<CommunitySnapDoc>) ??
+  model("CommunitySnap", CommunitySnapSchema);
 
 /* ---------------------------------------------------------------- reports */
 
@@ -93,7 +95,9 @@ ReportSchema.index({ status: 1, createdAt: -1 });
 ReportSchema.index({ targetType: 1, targetId: 1 });
 
 export type ReportDoc = InferSchemaType<typeof ReportSchema>;
-export const Report = model("Report", ReportSchema);
+export const Report =
+  (mongoose.models["Report"] as Model<ReportDoc>) ??
+  model("Report", ReportSchema);
 
 /* ----------------------------------------------------------- contributions */
 
@@ -147,7 +151,9 @@ ContributionSchema.index({ status: 1, createdAt: 1 });
 ContributionSchema.index({ submittedBy: 1, createdAt: -1 });
 
 export type ContributionDoc = InferSchemaType<typeof ContributionSchema>;
-export const Contribution = model("Contribution", ContributionSchema);
+export const Contribution =
+  (mongoose.models["Contribution"] as Model<ContributionDoc>) ??
+  model("Contribution", ContributionSchema);
 
 /* ----------------------------------------------------------- adminActions */
 
@@ -194,4 +200,6 @@ AdminActionSchema.index({ targetType: 1, targetId: 1 });
 AdminActionSchema.index({ adminId: 1, createdAt: -1 });
 
 export type AdminActionDoc = InferSchemaType<typeof AdminActionSchema>;
-export const AdminAction = model("AdminAction", AdminActionSchema);
+export const AdminAction =
+  (mongoose.models["AdminAction"] as Model<AdminActionDoc>) ??
+  model("AdminAction", AdminActionSchema);

@@ -7,7 +7,7 @@
  *   - a StoryUnlock is proximity only, and is independent of both.
  */
 
-import { Schema, model, type InferSchemaType } from "mongoose";
+import mongoose, { Schema, model, type Model, type InferSchemaType } from "mongoose";
 
 /* ------------------------------------------------ verificationAttempts -- */
 
@@ -151,10 +151,9 @@ VerificationAttemptSchema.index({ artifactId: 1 });
 VerificationAttemptSchema.index({ status: 1, createdAt: 1 });
 
 export type VerificationAttemptDoc = InferSchemaType<typeof VerificationAttemptSchema>;
-export const VerificationAttempt = model(
-  "VerificationAttempt",
-  VerificationAttemptSchema,
-);
+export const VerificationAttempt =
+  (mongoose.models["VerificationAttempt"] as Model<VerificationAttemptDoc>) ??
+  model("VerificationAttempt", VerificationAttemptSchema);
 
 /* ------------------------------------------------------------ discoveries */
 
@@ -183,7 +182,9 @@ DiscoverySchema.index({ userId: 1, artifactId: 1 }, { unique: true });
 DiscoverySchema.index({ artifactId: 1, createdAt: -1 });
 
 export type DiscoveryDoc = InferSchemaType<typeof DiscoverySchema>;
-export const Discovery = model("Discovery", DiscoverySchema);
+export const Discovery =
+  (mongoose.models["Discovery"] as Model<DiscoveryDoc>) ??
+  model("Discovery", DiscoverySchema);
 
 /* ---------------------------------------------------------- storyUnlocks - */
 
@@ -212,4 +213,30 @@ StoryUnlockSchema.index({ userId: 1, artifactId: 1 }, { unique: true });
 StoryUnlockSchema.index({ userId: 1 });
 
 export type StoryUnlockDoc = InferSchemaType<typeof StoryUnlockSchema>;
-export const StoryUnlock = model("StoryUnlock", StoryUnlockSchema);
+export const StoryUnlock =
+  (mongoose.models["StoryUnlock"] as Model<StoryUnlockDoc>) ??
+  model("StoryUnlock", StoryUnlockSchema);
+
+/* -------------------------------------------------------- idempotencyKeys - */
+
+/**
+ * Stores response payloads for Idempotency-Key headers (docs/API Contract.md 2.7).
+ * TTL index clears keys automatically after 24 hours (86400 seconds).
+ */
+const IdempotencyKeySchema = new Schema(
+  {
+    key: { type: String, required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    statusCode: { type: Number, required: true },
+    responseBody: { type: Schema.Types.Mixed, required: true },
+    createdAt: { type: Date, default: () => new Date(), expires: 86400 },
+  },
+  { timestamps: false },
+);
+
+IdempotencyKeySchema.index({ key: 1, userId: 1 }, { unique: true });
+
+export type IdempotencyKeyDoc = InferSchemaType<typeof IdempotencyKeySchema>;
+export const IdempotencyKey =
+  (mongoose.models["IdempotencyKey"] as Model<IdempotencyKeyDoc>) ??
+  model("IdempotencyKey", IdempotencyKeySchema);

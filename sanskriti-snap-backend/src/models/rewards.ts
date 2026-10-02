@@ -8,7 +8,7 @@
  * not a migration, because no other document depends on it.
  */
 
-import { Schema, model, type InferSchemaType } from "mongoose";
+import mongoose, { Schema, model, type Model, type InferSchemaType } from "mongoose";
 
 const RewardSchema = new Schema(
   {
@@ -37,7 +37,9 @@ const RewardSchema = new Schema(
 RewardSchema.index({ status: 1, pointRequirement: 1 });
 
 export type RewardDoc = InferSchemaType<typeof RewardSchema>;
-export const Reward = model("Reward", RewardSchema);
+export const Reward =
+  (mongoose.models["Reward"] as Model<RewardDoc>) ??
+  model("Reward", RewardSchema);
 
 /* ------------------------------------------------------------ redemptions */
 
@@ -68,4 +70,6 @@ RedemptionSchema.index({ userId: 1, redeemedAt: -1 });
 RedemptionSchema.index({ userId: 1, rewardId: 1 }, { unique: true });
 
 export type RedemptionDoc = InferSchemaType<typeof RedemptionSchema>;
-export const Redemption = model("Redemption", RedemptionSchema);
+export const Redemption =
+  (mongoose.models["Redemption"] as Model<RedemptionDoc>) ??
+  model("Redemption", RedemptionSchema);

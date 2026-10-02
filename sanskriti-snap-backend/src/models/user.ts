@@ -6,12 +6,18 @@
  * (docs/DB Schemas.md 4).
  */
 
-import { Schema, model, type InferSchemaType } from "mongoose";
+import mongoose, { Schema, model, type Model, type InferSchemaType } from "mongoose";
 
 const ProfileImageSchema = new Schema(
   {
+    /** Always displayable. Never a signed URL (docs/API Contract.md 7.6). */
     url: { type: String, required: true },
-    publicId: { type: String, required: true },
+    /**
+     * Null when the asset is not ours to manage — a Clerk-hosted avatar, say.
+     * Non-null only for an image uploaded through POST /api/v1/media/sign,
+     * which is the only case where the backend may later delete it.
+     */
+    publicId: { type: String, default: null },
   },
   { _id: false },
 );
@@ -66,4 +72,6 @@ const UserSchema = new Schema(
 UserSchema.index({ lifetimeXp: -1 });
 
 export type UserDoc = InferSchemaType<typeof UserSchema>;
-export const User = model("User", UserSchema);
+export const User =
+  (mongoose.models["User"] as Model<UserDoc>) ??
+  model("User", UserSchema);

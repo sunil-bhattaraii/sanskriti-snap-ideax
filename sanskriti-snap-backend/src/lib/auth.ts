@@ -35,6 +35,14 @@ function sanitizeUsernameCandidate(raw: string): string {
   return USERNAME_RE.test(cleaned) ? cleaned : "";
 }
 
+/** True when `err` is a duplicate-key error caused by the named index field. */
+function isDuplicateKeyOn(err: unknown, field: string): boolean {
+  if (typeof err !== "object" || err === null || !("code" in err)) return false;
+  if ((err as { code?: unknown }).code !== 11000) return false;
+  const keyPattern = (err as { keyPattern?: Record<string, unknown> }).keyPattern;
+  return Boolean(keyPattern) && field in (keyPattern as Record<string, unknown>);
+}
+
 /**
  * Application user records are created lazily on first authenticated request
  * rather than via Clerk webhooks, which is sufficient at hackathon scale
@@ -60,21 +68,40 @@ async function provisionUser(clerkUserId: string): Promise<AuthContext["user"]> 
     username = `${base.slice(0, 30 - suffix.length)}${suffix}`;
   }
 
-  const created = await User.create({
-    clerkUserId,
-    username,
-    displayName:
-      clerkUser?.firstName ||
-      clerkUser?.lastName ||
-      clerkUser?.username ||
-      email.split("@")[0] ||
-      "Explorer",
-    profileImage: clerkUser?.imageUrl
-      ? { url: clerkUser.imageUrl, publicId: clerkUser.imageUrl }
-      : null,
-  });
+  try {
+    const created = await User.create({
+      clerkUserId,
+      username,
+      displayName:
+        clerkUser?.firstName ||
+        clerkUser?.lastName ||
+        clerkUser?.username ||
+        email.split("@")[0] ||
+        "Explorer",
+      // Clerk hosts the avatar, so `url` is real and displayable, but it is not a
+      // Cloudinary asset and there is nothing for us to delete — hence a null
+      // `publicId`. Non-null only for an image uploaded through
+      // POST /api/v1/media/sign (docs/DB Schemas.md 4).
+      profileImage: clerkUser?.imageUrl
+        ? { url: clerkUser.imageUrl, publicId: null }
+        : null,
+    });
 
-  return created;
+    return created;
+  } catch (err) {
+    // The unique index on clerkUserId is the real idempotency guarantee, but two
+    // concurrent first requests both clear the username loop above and race
+    // here; the loser gets a 11000. Reload the winner's row rather than
+    // surfacing a spurious 409 on a caller's very first request. Only a
+    // clerkUserId collision means "this caller is already provisioned" — a
+    // username collision is re-thrown, because the loop above is the thing that
+    // resolves it.
+    if (isDuplicateKeyOn(err, "clerkUserId")) {
+      const winner = await User.findOne({ clerkUserId }).select("+clerkUserId");
+      if (winner) return toAuthUser(winner);
+    }
+    throw err;
+  }
 }
 
 function toAuthUser(doc: InstanceType<typeof User>): AuthContext["user"] {
@@ -92,6 +119,9 @@ function toAuthUser(doc: InstanceType<typeof User>): AuthContext["user"] {
 /**
  * Resolves the caller, or null when signed out. Safe to call on routes with
  * optional auth, where an anonymous caller gets a reduced payload.
+ *
+ * A `DELETED` account resolves to null too: it is anonymous everywhere, not a
+ * signed-in user carrying a flag.
  */
 export async function getAuthContext(): Promise<AuthContext | null> {
   const { userId } = await auth();
@@ -102,6 +132,8 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   const existing = await User.findOne({ clerkUserId: userId }).select(
     "+clerkUserId",
   );
+
+  if (existing && existing.accountStatus === "DELETED") return null;
 
   const user = existing ? toAuthUser(existing) : await provisionUser(userId);
   return { clerkUserId: userId, user };
