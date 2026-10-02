@@ -502,33 +502,6 @@ export type HideCommunitySnapRequest = z.infer<
   typeof HideCommunitySnapRequest
 >;
 
-/**
- * docs/API Contract.md 9 — suspending a user.
- *
- * `suspendedUntil` is accepted because the contract's table names it, but the
- * `users` collection has no field to hold it (docs/DB Schemas.md 4): a
- * suspension is indefinite and lifting it is a separate admin act. The value is
- * recorded in the `adminActions` metadata so the intent is not lost, and the
- * route does not pretend to enforce an expiry it cannot store.
- */
-export const SuspendUserRequest = z
-  .object({
-    reason: z.string().min(1).max(500),
-    suspendedUntil: z.iso.datetime({ offset: true }).nullish(),
-  })
-  .strict();
-export type SuspendUserRequest = z.infer<typeof SuspendUserRequest>;
-
-/** docs/API Contract.md 9 — hiding a community snap. A reason is required: the
- * snap's owner can see the moderation outcome and an unexplained hide is not
- * actionable for them. */
-export const HideCommunitySnapRequest = z
-  .object({ reason: z.string().min(1).max(500) })
-  .strict();
-export type HideCommunitySnapRequest = z.infer<
-  typeof HideCommunitySnapRequest
->;
-
 /* ------------------------------------------------------------ query params */
 
 export const PaginationQuery = z.object({
@@ -536,22 +509,6 @@ export const PaginationQuery = z.object({
   cursor: z.string().optional(),
 });
 export type PaginationQuery = z.infer<typeof PaginationQuery>;
-
-/**
- * docs/API Contract.md 9 — the admin user table. `q` matches username or
- * display name as a substring; it is capped at 60 so a pathological pattern
- * cannot turn the admin table into a full-collection scan on every keystroke.
- */
-export const AdminUserQuery = PaginationQuery.extend({
-  q: z.string().trim().min(1).max(60).optional(),
-});
-export type AdminUserQuery = z.infer<typeof AdminUserQuery>;
-
-/** docs/API Contract.md 9 — the community moderation queue. */
-export const CommunityQuery = PaginationQuery.extend({
-  status: CommunitySnapStatus.optional(),
-});
-export type CommunityQuery = z.infer<typeof CommunityQuery>;
 
 /**
  * docs/API Contract.md 9 — the admin user table. `q` matches username or
