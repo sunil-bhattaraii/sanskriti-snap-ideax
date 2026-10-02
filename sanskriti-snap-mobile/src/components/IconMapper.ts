@@ -6,7 +6,7 @@ export const getIconName = (materialIcon: string): keyof typeof import('@expo/ve
     arrow_back: 'arrow-back',
     settings: 'settings-outline',
     star: 'star',
-    workspace_premium: 'award',
+    workspace_premium: 'trophy',
     military_tech: 'trophy',
     leaderboard: 'stats-chart',
     library_books: 'library',

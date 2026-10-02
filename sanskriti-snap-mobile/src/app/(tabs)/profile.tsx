@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   View,
   Text,
@@ -7,16 +6,19 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { ProfileStats } from '@/components/ProfileStats';
 import { ProfileMenuItem } from '@/components/ProfileMenuItem';
 import { BottomNav } from '@/components/BottomNav';
-import { mockUserProfile, mockProfileMenuItems } from '@/data/mockUserprofile';
+import { mockUserProfile, mockProfileMenuItems } from '@/data/mockUserProfile';
 
 // ✅ FIX 1: Use default export for Expo Router screens
 export default function ProfileScreen() {
+  const router = useRouter();
+
   const handleBackPress = () => {
-    console.log('Navigate back');
+    router.back();
   };
 
   const handleSettingsPress = () => {
@@ -24,11 +26,22 @@ export default function ProfileScreen() {
   };
 
   const handleMenuItemPress = (id: string) => {
-    console.log(`Navigate to ${id}`);
+    if (id === 'badges') {
+      router.push('/badges' as any);
+    } else if (id === 'leaderboard') {
+      router.push('/leaderboard' as any);
+    } else if (id === 'collection') {
+      router.push('/collection' as any);
+    } else if (id === 'saved') {
+      router.push('/saved-places' as any);
+    } else if (id === 'rewards') {
+      router.push('/rewards' as any);
+    }
   };
 
   const handleTabPress = (tab: string) => {
-    console.log(`Switch to ${tab} tab`);
+    if (tab === 'profile') return;
+    router.push(`/(tabs)/${tab}` as any);
   };
 
   const progressItems = mockProfileMenuItems.filter(
@@ -47,8 +60,8 @@ export default function ProfileScreen() {
         onBackPress={handleBackPress}
         onSettingsPress={handleSettingsPress}
       />
-      
-      <ScrollView 
+
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
@@ -69,7 +82,7 @@ export default function ProfileScreen() {
 
         {/* Level Badge */}
         <View style={styles.levelBadge}>
-          <Ionicons name="workspace-premium" size={16} color="#F59E0B" />
+          <Ionicons name="ribbon" size={16} color="#F59E0B" />
           <Text style={styles.levelText}>
             Level {mockUserProfile.level}: {mockUserProfile.levelTitle}
           </Text>
