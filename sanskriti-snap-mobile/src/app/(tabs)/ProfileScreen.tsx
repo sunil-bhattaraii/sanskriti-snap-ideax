@@ -11,7 +11,7 @@ import { ProfileHeader } from '@/components/ProfileHeader';
 import { ProfileStats } from '@/components/ProfileStats';
 import { ProfileMenuItem } from '@/components/ProfileMenuItem';
 import { BottomNav } from '@/components/BottomNav';
-import { mockUserProfile, mockProfileMenuItems } from '@/data/mockUserprofile';
+import { mockUserProfile, mockProfileMenuItems } from '@/data/mockUserProfile';
 
 // ✅ FIX 1: Use default export for Expo Router screens
 export default function ProfileScreen() {
