@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import AppHeader from '../../components/AppHeader';
 import BottomSheet from '../../components/explore/BottomSheet';
@@ -9,6 +9,7 @@ import ExploreMapView, {
   MapViewHandle,
 } from '../../components/explore/MapView';
 import SearchBar from '../../components/explore/SearchBar';
+import { MOCK_ARTIFACTS } from '../../constants/mockData';
 
 type Coordinate = [number, number];
 
@@ -27,14 +28,32 @@ export default function ExploreScreen() {
     focus?: string;
   }>();
 
-  // Clean UI Placeholders (Modify these mock arrays to test your interface elements)
-  const [userLocation, setUserLocation] = useState<Coordinate | null>([85.324, 27.717]); // Default: Kathmandu
-  const [artifacts, setArtifacts] = useState<ExploreArtifact[]>([]);
-  const [selectedArtifact, setSelectedArtifact] = useState<ExploreArtifact | null>(null);
+  const userLocation: Coordinate = [85.3253, 27.6727]; // Default: Patan Durbar Square coords
+  const artifacts: ExploreArtifact[] = MOCK_ARTIFACTS;
+  const [selectedArtifact, setSelectedArtifact] =
+    useState<ExploreArtifact | null>(null);
 
   // Search States
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+
+  const searchResults: SearchResult[] = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    return artifacts
+      .filter(
+        (a) =>
+          a.name.toLowerCase().includes(query) ||
+          a.category.toLowerCase().includes(query) ||
+          a.description.toLowerCase().includes(query)
+      )
+      .map((a) => ({
+        id: a.id,
+        title: a.name,
+        subtitle: `${a.category.toUpperCase()} • ${Math.round(a.distance * 1000)}m away`,
+        type: 'artifact' as const,
+        data: a,
+      }));
+  }, [searchQuery, artifacts]);
 
   const mapViewRef = useRef<MapViewHandle>(null);
 
@@ -46,14 +65,21 @@ export default function ExploreScreen() {
 
     const timer = setTimeout(() => {
       mapViewRef.current?.flyTo([lng, lat], 16);
+      const matched = artifacts.find(
+        (a) => Math.abs(a.lat - lat) < 0.001 && Math.abs(a.lng - lng) < 0.001
+      );
+      if (matched) {
+        setSelectedArtifact(matched);
+      }
     }, 250);
     return () => clearTimeout(timer);
-  }, [params.lat, params.lng, params.focus]);
+  }, [params.lat, params.lng, params.focus, artifacts]);
 
   // Handle Search Result Interactions
   const handleSearchSelect = (result: SearchResult) => {
     if (result.type === 'artifact') {
       setSelectedArtifact(result.data);
+      mapViewRef.current?.flyTo([result.data.lng, result.data.lat], 16);
     } else if (result.type === 'location') {
       mapViewRef.current?.flyTo(result.data, 16);
     }
@@ -79,7 +105,6 @@ export default function ExploreScreen() {
 
       <AppHeader
         overlay
-        // overlayTop={30}
         centerContent={
           <SearchBar
             embedded
@@ -87,7 +112,7 @@ export default function ExploreScreen() {
             setQuery={setSearchQuery}
             results={searchResults}
             onSelect={handleSearchSelect}
-            onClose={() => setSearchResults([])}
+            onClose={() => setSearchQuery('')}
             autoFocus={Boolean(params.focus)}
           />
         }

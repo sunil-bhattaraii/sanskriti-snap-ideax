@@ -1,22 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // ✅ Added router
+import { useRouter } from 'expo-router';
 import { COLORS } from '../../constants/colors';
-import { getCategoryIcon } from '../../constants/MapIcons';
+import { getCategoryIcon } from '../../constants/MapIcons'; 
 import { formatDistance } from '../../utils/location';
-
-type ExploreArtifact = {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  reference_images: string[];
-  xp_value: number;
-  lat: number;
-  lng: number;
-  distance: number;
-};
+import type { ExploreArtifact } from '../../types/artifact';
 
 interface ArtifactCardProps {
   artifact: ExploreArtifact;
