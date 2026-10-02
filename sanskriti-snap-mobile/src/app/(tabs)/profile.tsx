@@ -1,254 +1,291 @@
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Image,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ProfileHeader } from '@/components/ProfileHeader';
-import { ProfileStats } from '@/components/ProfileStats';
-import { ProfileMenuItem } from '@/components/ProfileMenuItem';
-import { BottomNav } from '@/components/BottomNav';
-import { mockUserProfile, mockProfileMenuItems } from '@/data/mockUserProfile';
+import ProfileAvatar from '@/components/ProfileAvatar';
+import AppHeader from '@/components/AppHeader';
+import ProfileMenuItem from '@/components/ProfileMenuItems';
+import StatItem from '@/components/StatItem';
+import { Button } from '@/components/Button'; // Adjust path if needed (e.g., '../../components/Button')
+import { MENU_SECTIONS } from '@/constants/ProfileMenu';
+import { useAuthStore } from '@/store/authstore'; // Adjust path to match your actual store location
+import { backendClient } from '@/services/backendClient';
 
-// ✅ FIX 1: Use default export for Expo Router screens
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, profile, loading, signOut } = useAuthStore();
 
-  const handleBackPress = () => {
-    router.back();
-  };
+  const isAuthenticated = !!user;
 
-  const handleSettingsPress = () => {
-    console.log('Open settings');
-  };
+  const displayName =
+    profile?.display_name ?? (isAuthenticated ? user.email : 'Guest User');
+  const username = profile?.username ?? 'guest';
+  const imageUrl = profile?.profile_image_url ?? null;
+  const lifetimeXp = profile?.lifetime_xp ?? 0;
+  const rewardPoints = profile?.reward_points ?? 0;
+  const [questCount, setQuestCount] = useState(0);
 
-  const handleMenuItemPress = (id: string) => {
-    if (id === 'badges') {
-      router.push('/badges' as any);
-    } else if (id === 'leaderboard') {
-      router.push('/leaderboard' as any);
-    } else if (id === 'collection') {
-      router.push('/collection' as any);
-    } else if (id === 'saved') {
-      router.push('/saved-places' as any);
-    } else if (id === 'rewards') {
-      router.push('/rewards' as any);
+  useEffect(() => {
+    if (!user) {
+      queueMicrotask(() => setQuestCount(0));
+      return;
     }
+
+    backendClient
+      .from('user_quest_progress')
+      .select('quest_id')
+      .eq('user_id', user.id)
+      .not('completed_at', 'is', null)
+      .then(({ data }) => setQuestCount(data?.length ?? 0));
+  }, [user]);
+
+  // Dynamic level calculation based on XP (e.g., 1000 XP = Level 2)
+  const level = isAuthenticated ? Math.floor(lifetimeXp / 1000) + 1 : 1;
+  const levelTitle = isAuthenticated
+    ? level >= 5
+      ? 'Master Explorer'
+      : level >= 2
+        ? 'Active Explorer'
+        : 'Novice Explorer'
+    : 'Guest';
+
+  const renderMenuSection = (
+    section: (typeof MENU_SECTIONS)[0],
+    index: number
+  ) => {
+    const visibleItems = section.items.filter(
+      (item) => isAuthenticated || !item.isDestructive
+    );
+
+    return (
+      <View key={index} style={styles.section}>
+        <Text style={styles.sectionTitle}>{section.title}</Text>
+        <View style={styles.menuCard}>
+          {visibleItems.map((item, itemIndex) => (
+            <React.Fragment key={itemIndex}>
+              <ProfileMenuItem {...item} />
+              {itemIndex < visibleItems.length - 1 && (
+                <View style={styles.divider} />
+              )}
+            </React.Fragment>
+          ))}
+        </View>
+      </View>
+    );
   };
 
-  const handleTabPress = (tab: string) => {
-    if (tab === 'profile') return;
-    router.push(`/(tabs)/${tab}` as any);
-  };
-
-  const progressItems = mockProfileMenuItems.filter(
-    (item) => item.section === 'progress'
-  );
-  const explorationItems = mockProfileMenuItems.filter(
-    (item) => item.section === 'exploration'
-  );
-  const rewardsItems = mockProfileMenuItems.filter(
-    (item) => item.section === 'rewards'
-  );
+  // Show loading spinner while initial auth state is being resolved
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          { justifyContent: 'center', alignItems: 'center' },
+        ]}
+      >
+        <ActivityIndicator size="large" color="#F59E0B" />
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <ProfileHeader
-        onBackPress={handleBackPress}
-        onSettingsPress={handleSettingsPress}
-      />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+
+      <AppHeader title="Profile" showBack />
 
       <ScrollView
-        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Picture */}
-        <View style={styles.profileImageContainer}>
-          <Image
-            source={{ uri: mockUserProfile.profileImage }}
-            style={styles.profileImage}
-            resizeMode="cover" // ✅ FIX 2: Moved resizeMode from style to prop
+        {/* Profile Header */}
+        <View style={styles.header}>
+          <ProfileAvatar
+            displayName={displayName}
+            imageUrl={imageUrl}
+            size={100}
           />
-          <View style={styles.starBadge}>
-            <Ionicons name="star" size={16} color="#F59E0B" />
-          </View>
-        </View>
 
-        {/* Username */}
-        <Text style={styles.username}>{mockUserProfile.username}</Text>
-
-        {/* Level Badge */}
-        <View style={styles.levelBadge}>
-          <Ionicons name="ribbon" size={16} color="#F59E0B" />
-          <Text style={styles.levelText}>
-            Level {mockUserProfile.level}: {mockUserProfile.levelTitle}
+          <Text style={styles.username}>
+            {username || displayName}&nbsp;
+            <Pressable
+              onPress={() => {
+                router.replace({
+                  pathname: '/(auth)/choose-username',
+                  params: {
+                    mode: 'edit',
+                  },
+                });
+              }}
+              hitSlop={10}
+            >
+              <Ionicons name="create-outline" size={22} color="#475569" />
+            </Pressable>
           </Text>
-        </View>
 
-        {/* Stats */}
-        <ProfileStats
-          totalXP={mockUserProfile.totalXP}
-          discoveries={mockUserProfile.discoveries}
-          quests={mockUserProfile.quests}
-        />
-
-        {/* My Progress Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>MY PROGRESS</Text>
-          <View style={styles.menuContainer}>
-            {progressItems.map((item) => (
-              <ProfileMenuItem
-                key={item.id}
-                icon={item.icon}
-                iconColor={item.iconColor}
-                iconBackgroundColor={item.iconBackgroundColor}
-                title={item.title}
-                onPress={() => handleMenuItemPress(item.id)}
-              />
-            ))}
+          <View style={styles.levelBadge}>
+            <Ionicons
+              name="star"
+              size={14}
+              color="#F59E0B"
+              style={styles.levelIcon}
+            />
+            <Text style={styles.levelText}>
+              Level {level}: {levelTitle}
+            </Text>
           </View>
-        </View>
 
-        {/* Exploration Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>EXPLORATION</Text>
-          <View style={styles.menuContainer}>
-            {explorationItems.map((item) => (
-              <ProfileMenuItem
-                key={item.id}
-                icon={item.icon}
-                iconColor={item.iconColor}
-                iconBackgroundColor={item.iconBackgroundColor}
-                title={item.title}
-                onPress={() => handleMenuItemPress(item.id)}
+          {/* Guest Login Prompt */}
+          {!isAuthenticated && (
+            <View style={styles.guestPrompt}>
+              <Text style={styles.guestText}>
+                Sign in to save discoveries, earn XP, and complete cultural
+                quests.
+              </Text>
+              <Button
+                title="Login / Register"
+                onPress={() => router.push('/(auth)/login')}
+                variant="primary"
+                size="md"
               />
-            ))}
-          </View>
+            </View>
+          )}
+        </View>
+        {/* Stats Row - Aligned with your DB schema (lifetime_xp, reward_points) */}
+        <View style={styles.statsContainer}>
+          <StatItem
+            value={lifetimeXp.toString()}
+            label="TOTAL XP"
+            icon="flash"
+            iconColor="#F59E0B"
+          />
+          <View style={styles.statDivider} />
+          <StatItem
+            value={rewardPoints.toString()}
+            label="REWARD POINTS"
+            icon="gift"
+            iconColor="#5C3D2E"
+          />
+          <View style={styles.statDivider} />
+          <StatItem
+            value={questCount.toString()}
+            label="QUESTS"
+            icon="trophy"
+            iconColor="#8B4513"
+          />
         </View>
 
-        {/* Rewards Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>REWARDS</Text>
-          <View style={styles.menuContainer}>
-            {rewardsItems.map((item) => (
-              <ProfileMenuItem
-                key={item.id}
-                icon={item.icon}
-                iconColor={item.iconColor}
-                iconBackgroundColor={item.iconBackgroundColor}
-                title={item.title}
-                subtitle={item.subtitle}
-                onPress={() => handleMenuItemPress(item.id)}
-              />
-            ))}
-          </View>
-        </View>
+        {/* Menu Sections - Mapped from Constants */}
+        {MENU_SECTIONS.map(renderMenuSection)}
 
-        {/* Bottom spacing for bottom nav */}
-        <View style={styles.bottomSpacing} />
+        <View style={{ height: 40 }} />
       </ScrollView>
-
-      {/* Bottom Navigation */}
-      <BottomNav activeTab="profile" onTabPress={handleTabPress} />
-    </View>
+    </SafeAreaView>
   );
 }
 
+// Styles remain exactly the same as before, with minor additions for Guest/Logout states
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F5F0',
+    backgroundColor: '#F9FAFB',
   },
-  scrollView: {
-    flex: 1,
+  scrollContent: {
+    paddingBottom: 40,
   },
-  profileImageContainer: {
+  header: {
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  starBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: '28%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingTop: 20,
+    paddingBottom: 24,
   },
   username: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#1A1A1A',
-    textAlign: 'center',
+    color: '#1F2937',
+    marginTop: 16,
     marginBottom: 8,
   },
   levelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F3F4F6',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 20,
-    alignSelf: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+  },
+  levelIcon: {
+    marginRight: 6,
   },
   levelText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#666666',
-    marginLeft: 6,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 8,
   },
   section: {
     marginTop: 24,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#666666',
-    letterSpacing: 1,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: 12,
-    paddingHorizontal: 4,
+    marginLeft: 4,
   },
-  menuContainer: {
+  menuCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 2,
   },
-  bottomSpacing: {
-    height: 16,
+  divider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginHorizontal: 16,
+  },
+  // --- New styles for Guest/Logout states ---
+  guestPrompt: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  guestText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

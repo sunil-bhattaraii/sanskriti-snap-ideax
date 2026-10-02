@@ -1,48 +1,64 @@
-// src/app/(tabs)/badges.tsx
-import React from 'react';
-import { View, StyleSheet, ScrollView, Text } from 'react-native';
-import { useRouter } from 'expo-router';
-import { BadgesHeader } from '../../components/BadgesHeader';
-import { ProgressCircle } from '../../components/ProgressCircle';
-import { BadgeCard } from '../../components/BadgeCard';
-import { BottomNav } from '../../components/BottomNav';
-import { mockBadges, mockBadgeProgress } from '../../data/mockBadges';
+import { Stack, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import ScreenHeader from '../../components/ScreenHeader';
+import BadgeGrid from '../../components/badges/BadgeGrid';
+import BadgeProgress from '../../components/badges/BadgeProgress';
+import { COLORS } from '../../constants/colors';
+import { getBadges, type BadgesData } from '../../services/badges';
+import { useAuthStore } from '../../store/authstore';
 
 export default function BadgesScreen() {
-  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const [badgesData, setBadgesData] = useState<BadgesData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleTabPress = (tab: string) => {
-    if (tab === 'profile') return;
-    router.push(`/(tabs)/${tab}` as any);
-  };
+  const loadBadges = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      setBadgesData(await getBadges(user?.id));
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : 'Unable to load badges.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadBadges();
+    }, [loadBadges])
+  );
 
   return (
     <View style={styles.container}>
-      <BadgesHeader />
-      
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Progress Section */}
-        <ProgressCircle progress={mockBadgeProgress} />
-        
-        <Text style={styles.sectionTitle}>Exploration Progress</Text>
-        <Text style={styles.sectionSubtitle}>
-          Keep discovering artifacts to expand your collection.
-        </Text>
+      <Stack.Screen options={{ headerShown: false }} />
+      <ScreenHeader title="My Badges" />
 
-        <View style={styles.divider} />
-
-        {/* Badges Grid */}
-        <View style={styles.gridContainer}>
-          {mockBadges.map((badge) => (
-            <BadgeCard key={badge.id} badge={badge} />
-          ))}
-        </View>
-      </ScrollView>
-
-      <BottomNav activeTab="profile" onTabPress={handleTabPress} />
+      <View style={styles.content}>
+        {isLoading ? (
+          <View style={styles.statusContainer}>
+            <ActivityIndicator color={COLORS.primary} />
+          </View>
+        ) : error ? (
+          <View style={styles.statusContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Pressable onPress={() => void loadBadges()} style={styles.retryButton}>
+              <Text style={styles.retryText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : badgesData ? (
+          <>
+            <BadgeProgress data={badgesData} />
+            <BadgeGrid badges={badgesData.badges} />
+          </>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -50,36 +66,28 @@ export default function BadgesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FDFBF9',
+    backgroundColor: COLORS.neutral,
   },
-  scrollContent: {
-    paddingBottom: 16,
+  content: {
+    flex: 1,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1A1A1A',
+  statusContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  errorText: {
+    color: COLORS.tertiary,
     textAlign: 'center',
-    marginBottom: 8,
   },
-  sectionSubtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingHorizontal: 40,
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginHorizontal: 16,
-    marginBottom: 24,
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  retryButton: {
+    marginTop: 16,
     paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  retryText: {
+    color: COLORS.primary,
+    fontWeight: '700',
   },
 });
