@@ -7,11 +7,20 @@ import React, {
 import { Map, Camera } from '@maplibre/maplibre-react-native';
 import UserLocationMarker from './UserLocationMarker';
 import ArtifactMarker from './ArtifactMarker';
-import type { ExploreArtifact } from '../../types/artifact';
-
-export type { ExploreArtifact };
 
 type Coordinate = [number, number];
+
+export type ExploreArtifact = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  reference_images: string[];
+  xp_value: number;
+  lat: number;
+  lng: number;
+  distance: number;
+};
 
 interface MapViewProps {
   userLocation: Coordinate | null;
