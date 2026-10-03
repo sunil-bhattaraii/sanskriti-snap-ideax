@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useClerk, useSignUp } from '@clerk/expo';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,17 +13,26 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Button } from '../../components/ui/Button';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button } from '../../components/Button';
 import { COLORS } from '../../constants/colors';
+import { useGoogleSignIn } from '../../services/auth';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { signUp } = useSignUp();
+  const { setActive } = useClerk();
+  const googleSignIn = useGoogleSignIn();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleRegister = () => {
+  const isAnyLoading = registerLoading || googleLoading;
+
+  const handleRegister = async () => {
     if (!fullName || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -39,17 +48,46 @@ export default function RegisterScreen() {
       return;
     }
 
-    Alert.alert(
-      'Not connected yet',
-      'Wire up your auth API to enable registration.'
-    );
+    setRegisterLoading(true);
+    try {
+      await signUp.create({
+        emailAddress: email,
+        password,
+        firstName: fullName,
+      });
+      if (signUp.status !== 'complete' || !signUp.createdSessionId) {
+        throw new Error('Check your email to verify your account, then sign in.');
+      }
+      await setActive({ session: signUp.createdSessionId });
+
+      router.replace({
+        pathname: '/(auth)/choose-username',
+        params: {
+          mode: 'register',
+        },
+      });
+    } catch (error: any) {
+      Alert.alert('Registration Failed', error.message);
+    } finally {
+      setRegisterLoading(false);
+    }
   };
 
-  const handleGoogleSignUp = () => {
-    Alert.alert(
-      'Not connected yet',
-      'Wire up your auth API to enable Google sign-up.'
-    );
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    try {
+      await googleSignIn();
+      router.replace({
+        pathname: '/(auth)/choose-username',
+        params: {
+          mode: 'register',
+        },
+      });
+    } catch (error: any) {
+      Alert.alert('Google Sign-Up Failed', error.message);
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -88,6 +126,7 @@ export default function RegisterScreen() {
                   value={fullName}
                   onChangeText={setFullName}
                   autoCapitalize="words"
+                  editable={!isAnyLoading}
                 />
               </View>
             </View>
@@ -108,6 +147,7 @@ export default function RegisterScreen() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  editable={!isAnyLoading}
                 />
               </View>
             </View>
@@ -127,6 +167,7 @@ export default function RegisterScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
+                  editable={!isAnyLoading}
                 />
               </View>
             </View>
@@ -146,6 +187,7 @@ export default function RegisterScreen() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry
+                  editable={!isAnyLoading}
                 />
               </View>
             </View>
@@ -153,6 +195,8 @@ export default function RegisterScreen() {
             <Button
               title="CREATE ACCOUNT"
               onPress={handleRegister}
+              loading={registerLoading}
+              disabled={isAnyLoading}
               variant="primary"
               size="lg"
               fullWidth
@@ -167,6 +211,8 @@ export default function RegisterScreen() {
             <Button
               title="Sign up with Google"
               onPress={handleGoogleSignUp}
+              loading={googleLoading}
+              disabled={isAnyLoading}
               variant="outline"
               size="lg"
               fullWidth
@@ -179,7 +225,8 @@ export default function RegisterScreen() {
             <View style={styles.footer}>
               <Text style={styles.footerText}>Already have an account? </Text>
               <TouchableOpacity
-                onPress={() => router.push('/login')}
+                onPress={() => router.push('/(auth)/login')}
+                disabled={isAnyLoading}
               >
                 <Text style={styles.footerLink}>Login</Text>
               </TouchableOpacity>
