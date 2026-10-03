@@ -45,8 +45,8 @@ export default function ProfileScreen() {
       .select('quest_id')
       .eq('user_id', user.id)
       .not('completed_at', 'is', null)
-      .then(({ data }) => setQuestCount(data?.length ?? 0))
-      .catch((error) => {
+      .then(({ data }: { data?: unknown[] | null }) => setQuestCount(data?.length ?? 0))
+      .catch((error: unknown) => {
         console.warn('Unable to load completed quests:', error);
         setQuestCount(0);
       });

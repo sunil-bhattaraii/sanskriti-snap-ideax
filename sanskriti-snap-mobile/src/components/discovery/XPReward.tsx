@@ -23,7 +23,7 @@ export default function XPReward({ data }: Props) {
 
       <View style={[styles.rewardBox, styles.pointsBox]}>
         <View style={[styles.iconCircle, styles.pointsIconCircle]}>
-          <Ionicons name="coin" size={20} color={COLORS.secondary} />
+          <Ionicons name="cash-outline" size={20} color={COLORS.secondary} />
         </View>
         <View style={styles.textContainer}>
           <Text style={[styles.xpValue, styles.pointsValue]}>
