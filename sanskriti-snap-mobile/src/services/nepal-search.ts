@@ -90,8 +90,8 @@ function distanceInMeters(
   const a =
     Math.sin(latDelta / 2) ** 2 +
     Math.cos((firstLat * Math.PI) / 180) *
-      Math.cos((secondLat * Math.PI) / 180) *
-      Math.sin(lngDelta / 2) ** 2;
+    Math.cos((secondLat * Math.PI) / 180) *
+    Math.sin(lngDelta / 2) ** 2;
   return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 

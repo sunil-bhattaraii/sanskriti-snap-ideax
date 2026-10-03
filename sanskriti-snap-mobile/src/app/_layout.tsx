@@ -81,16 +81,16 @@ function AuthenticatedLayout() {
     if (!isLoaded) return;
     const user = clerkUser
       ? {
-          id: clerkUser.id,
-          email: clerkUser.primaryEmailAddress?.emailAddress ?? '',
-          username: clerkUser.username ?? '',
-          fullName:
-            clerkUser.fullName ??
-            clerkUser.firstName ??
-            clerkUser.username ??
-            'Explorer',
-          imageUrl: clerkUser.imageUrl,
-        }
+        id: clerkUser.id,
+        email: clerkUser.primaryEmailAddress?.emailAddress ?? '',
+        username: clerkUser.username ?? '',
+        fullName:
+          clerkUser.fullName ??
+          clerkUser.firstName ??
+          clerkUser.username ??
+          'Explorer',
+        imageUrl: clerkUser.imageUrl,
+      }
       : null;
 
     setSession(user);

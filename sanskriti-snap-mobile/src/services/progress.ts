@@ -100,15 +100,15 @@ export function fetchQuestDetails(questId: string, _userId: string | null) {
       : undefined,
     artifacts: Array.isArray(item.artifacts)
       ? item.artifacts.map((artifact) => {
-          const value = artifact as Record<string, unknown>;
-          return {
-            id: String(value.id),
-            name: String(value.name ?? ''),
-            location: String(value.humanReadableLocation ?? ''),
-            imageUrl: String(value.coverImageUrl ?? ''),
-            isDiscovered: Boolean(value.discovered),
-          };
-        })
+        const value = artifact as Record<string, unknown>;
+        return {
+          id: String(value.id),
+          name: String(value.name ?? ''),
+          location: String(value.humanReadableLocation ?? ''),
+          imageUrl: String(value.coverImageUrl ?? ''),
+          isDiscovered: Boolean(value.discovered),
+        };
+      })
       : [],
   }));
 }
