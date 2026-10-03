@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     mongodb_uri: str = "mongodb://127.0.0.1:27017"
     mongodb_db: str = "sanskriti-snap"
-    mongodb_references_collection: str = "artifactReferences"
+    mongodb_references_collection: str = "artifactreferences"
 
     cloudinary_cloud_name: str | None = None
     cv_allowed_image_hosts: str = "res.cloudinary.com"

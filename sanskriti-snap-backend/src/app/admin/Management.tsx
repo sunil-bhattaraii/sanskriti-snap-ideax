@@ -153,15 +153,15 @@ type Dialog =
   | { kind: "references"; item: ArtifactRow }
   | { kind: "xp"; item?: Row }
   | {
-      kind:
-        | "suspend"
-        | "contributionApprove"
-        | "contributionReject"
-        | "verificationApprove"
-        | "verificationReject"
-        | "communityHide";
-      item: Row;
-    };
+    kind:
+    | "suspend"
+    | "contributionApprove"
+    | "contributionReject"
+    | "verificationApprove"
+    | "verificationReject"
+    | "communityHide";
+    item: Row;
+  };
 
 type ApiPayload<T> = {
   error?: { message?: string; details?: { fields?: Record<string, string[]> } };
@@ -478,11 +478,11 @@ function ImageUploadField({
   defaultValue?: string | null;
   defaultPublicId?: string | null;
   purpose?:
-    | "VERIFICATION_SNAP"
-    | "VERIFICATION_GALLERY"
-    | "PROFILE_IMAGE"
-    | "COMMUNITY_SNAP"
-    | "CONTRIBUTION_PHOTO";
+  | "VERIFICATION_SNAP"
+  | "VERIFICATION_GALLERY"
+  | "PROFILE_IMAGE"
+  | "COMMUNITY_SNAP"
+  | "CONTRIBUTION_PHOTO";
   required?: boolean;
   help?: string;
   onUploaded?: (image: UploadedImage) => void;
@@ -694,45 +694,61 @@ function MultiImageCvUploader({
 
     try {
       const total = selectedFiles.length;
+      const failedFiles: string[] = [];
+      let completedFiles = 0;
       for (let i = 0; i < total; i++) {
         const file = selectedFiles[i];
 
-        // 1. Upload to Cloudinary
-        setStatusMessage(
-          `[${i + 1}/${total}] Uploading "${file.name}" to Cloudinary...`,
-        );
-        const { publicId } = await uploadToCloudinary(
-          file,
-          "VERIFICATION_GALLERY",
-        );
+        try {
+          // 1. Upload to Cloudinary
+          setStatusMessage(
+            `[${i + 1}/${total}] Uploading "${file.name}" to Cloudinary...`,
+          );
+          const { publicId } = await uploadToCloudinary(
+            file,
+            "VERIFICATION_GALLERY",
+          );
 
-        setStatusMessage(
-          useCvEmbedding
-            ? `[${i + 1}/${total}] Fetching the CV embedding and saving it for "${file.name}"...`
-            : `[${i + 1}/${total}] Saving "${file.name}" as a reference image...`,
-        );
-        const customModel =
-          useCvEmbedding &&
-          showModelInputs &&
-          modelName.trim() &&
-          modelVersion.trim()
-            ? { name: modelName.trim(), version: modelVersion.trim() }
-            : undefined;
-        await api(`/api/v1/admin/artifacts/${artifactId}/references`, {
-          method: "POST",
-          body: JSON.stringify({
-            imagePublicId: publicId,
-            isCover: i === 0 ? isCover : false,
-            ...(useCvEmbedding ? { generateEmbedding: true } : {}),
-            ...(customModel ? { model: customModel } : {}),
-          }),
-        });
+          setStatusMessage(
+            useCvEmbedding
+              ? `[${i + 1}/${total}] Fetching the CV embedding and saving it for "${file.name}"...`
+              : `[${i + 1}/${total}] Saving "${file.name}" as a reference image...`,
+          );
+          const customModel =
+            useCvEmbedding &&
+              showModelInputs &&
+              modelName.trim() &&
+              modelVersion.trim()
+              ? { name: modelName.trim(), version: modelVersion.trim() }
+              : undefined;
+          await api(`/api/v1/admin/artifacts/${artifactId}/references`, {
+            method: "POST",
+            body: JSON.stringify({
+              imagePublicId: publicId,
+              isCover: i === 0 ? isCover : false,
+              ...(useCvEmbedding ? { generateEmbedding: true } : {}),
+              ...(customModel ? { model: customModel } : {}),
+            }),
+          });
+          completedFiles += 1;
+        } catch (err) {
+          failedFiles.push(
+            `${file.name}: ${err instanceof Error ? err.message : "failed"}`,
+          );
+          console.error("[admin] reference upload failed", {
+            artifactId,
+            fileName: file.name,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
 
+      if (completedFiles === 0) {
+        throw new Error(failedFiles.join("; ") || "No files were uploaded.");
+      }
       setSuccessMessage(
-        useCvEmbedding
-          ? `Successfully uploaded ${total} image${total > 1 ? "s" : ""} and generated CV embeddings.`
-          : `Successfully uploaded ${total} reference image${total > 1 ? "s" : ""}.`,
+        `${completedFiles}/${total} reference image${total > 1 ? "s" : ""} processed successfully${failedFiles.length ? `. Failed: ${failedFiles.join("; ")}` : "."
+        }`,
       );
       setStatusMessage(null);
       setSelectedFiles([]);
@@ -929,9 +945,8 @@ function MultiImageCvUploader({
         >
           {busy
             ? "Processing..."
-            : `Upload & Process ${
-                selectedFiles.length > 0 ? `(${selectedFiles.length})` : ""
-              }`}
+            : `Upload & Process ${selectedFiles.length > 0 ? `(${selectedFiles.length})` : ""
+            }`}
         </button>
       </div>
     </form>
@@ -1462,30 +1477,30 @@ export default function Management({ section }: { section: Section }) {
         "POST",
         text(form, "artifactId")
           ? {
-              artifactId: text(form, "artifactId"),
-              note: text(form, "note") || null,
-            }
+            artifactId: text(form, "artifactId"),
+            note: text(form, "note") || null,
+          }
           : {
-              artifact: {
-                name: (dialog.item as ContributionRow).name,
-                description: (dialog.item as ContributionRow).description,
-                story: (dialog.item as ContributionRow).culturalSignificance,
-                category: (dialog.item as ContributionRow).category,
-                tags: (dialog.item as ContributionRow).tags,
-                latitude: (dialog.item as ContributionRow).latitude,
-                longitude: (dialog.item as ContributionRow).longitude,
-                humanReadableLocation:
-                  (dialog.item as ContributionRow).humanReadableLocation ??
-                  "Location pending review",
-                storyUnlockRadiusMeters: 500,
-                verificationRadiusMeters: 100,
-                xpReward: 50,
-                requiresSnap: true,
-                requiresCV: false,
-                status: "DRAFT",
-              },
-              note: text(form, "note") || null,
+            artifact: {
+              name: (dialog.item as ContributionRow).name,
+              description: (dialog.item as ContributionRow).description,
+              story: (dialog.item as ContributionRow).culturalSignificance,
+              category: (dialog.item as ContributionRow).category,
+              tags: (dialog.item as ContributionRow).tags,
+              latitude: (dialog.item as ContributionRow).latitude,
+              longitude: (dialog.item as ContributionRow).longitude,
+              humanReadableLocation:
+                (dialog.item as ContributionRow).humanReadableLocation ??
+                "Location pending review",
+              storyUnlockRadiusMeters: 500,
+              verificationRadiusMeters: 100,
+              xpReward: 50,
+              requiresSnap: true,
+              requiresCV: false,
+              status: "DRAFT",
             },
+            note: text(form, "note") || null,
+          },
       );
     } else if (dialog.kind === "contributionReject") {
       await mutate(
@@ -1672,201 +1687,201 @@ export default function Management({ section }: { section: Section }) {
       {notice && <div className="management-notice" role="status">{notice}</div>}
 
       <div className="management-panel">
-          {loading ? (
-            <div className="management-loading">
-              <span />
-              <span />
-              <span />
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="management-empty">
-              <strong>No {section.toLowerCase()} found</strong>
-              <span>
-                {section === "Reviews"
-                  ? "There are no items waiting in this queue."
-                  : "Try refreshing or create a new item."}
-              </span>
-            </div>
-          ) : (
-            <div className="management-table-scroll">
-              <table className="management-table">
-                <thead>
-                  {section === "Places" && (
-                    <tr><th>Place</th><th>Status</th><th>Discoveries</th><th>Actions</th></tr>
-                  )}
-                  {section === "Quests" && (
-                    <tr><th>Quest</th><th>Places</th><th>XP</th><th>Status</th><th>Actions</th></tr>
-                  )}
-                  {section === "Badges" && (
-                    <tr><th>Badge</th><th>Condition</th><th>Status</th><th>Actions</th></tr>
-                  )}
-                  {section === "Users" && (
-                    <tr><th>Explorer</th><th>Role</th><th>XP</th><th>Account</th><th>Actions</th></tr>
-                  )}
-                  {section === "XP adjustments" && (
-                    <tr><th>Explorer</th><th>Account</th><th>Lifetime XP</th><th>Action</th></tr>
-                  )}
-                  {section === "Reviews" && reviewType === "contributions" && (
-                    <tr><th>Submission</th><th>Submitted by</th><th>Location</th><th>Actions</th></tr>
-                  )}
-                  {section === "Reviews" && reviewType === "verification" && (
-                    <tr><th>Place</th><th>Explorer</th><th>Flag reason</th><th>Actions</th></tr>
-                  )}
-                  {section === "Community" && (
-                    <tr><th>Snap</th><th>Explorer</th><th>Place</th><th>Status</th><th>Actions</th></tr>
-                  )}
-                </thead>
-                <tbody>
-                  {section === "Places" &&
-                    (rows as ArtifactRow[]).map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{item.name}</strong><small>{item.humanReadableLocation} · {item.category.replaceAll("_", " ")}</small></td>
-                        <td><span className={statusClass(item.status)}>{item.status}</span></td>
-                        <td>{item.discoveryCount.toLocaleString()}</td>
-                        <td className="table-actions">
-                          <ActionButton onClick={() => setDialog({ kind: "artifact", item })}>Edit</ActionButton>
-                          <ActionButton onClick={() => setDialog({ kind: "references", item })}>Images</ActionButton>
-                          {item.status !== "ARCHIVED" && (
-                            <ActionButton
-                              tone="danger"
-                              disabled={!isActionable}
-                              onClick={() => void setLifecycle(`/api/v1/admin/artifacts/${item.id}`, "ARCHIVED", `Archive ${item.name}?`)}
-                            >
-                              Archive
-                            </ActionButton>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  {section === "XP adjustments" &&
-                    users.map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{item.displayName}</strong><small>@{item.username}</small></td>
-                        <td><span className={statusClass(item.accountStatus)}>{item.accountStatus}</span></td>
-                        <td>{item.lifetimeXp.toLocaleString()}</td>
-                        <td><ActionButton disabled={!isActionable || item.accountStatus === "DELETED"} onClick={() => setDialog({ kind: "xp", item })}>Adjust XP</ActionButton></td>
-                      </tr>
-                    ))}
-                  {section === "Quests" &&
-                    (rows as QuestRow[]).map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{item.name}</strong><small>{item.description}</small></td>
-                        <td>{item.artifactIds.length}</td>
-                        <td>{item.xpReward.toLocaleString()}</td>
-                        <td><span className={statusClass(item.status)}>{item.status}</span></td>
-                        <td className="table-actions">
-                          <ActionButton onClick={() => setDialog({ kind: "quest", item })}>Edit</ActionButton>
-                          {item.status === "ACTIVE" && (
-                            <ActionButton tone="danger" disabled={!isActionable} onClick={() => void setLifecycle(`/api/v1/admin/quests/${item.id}`, "ARCHIVED", `Archive ${item.name}?`)}>
-                              Archive
-                            </ActionButton>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  {section === "Badges" &&
-                    (rows as BadgeRow[]).map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{item.name}</strong><small>{item.description}</small></td>
-                        <td>{item.condition.type.replaceAll("_", " ")}</td>
-                        <td><span className={statusClass(item.status)}>{item.status}</span></td>
-                        <td className="table-actions">
-                          <ActionButton onClick={() => setDialog({ kind: "badge", item })}>Edit</ActionButton>
-                          <ActionButton disabled={!isActionable} onClick={() => void setLifecycle(`/api/v1/admin/badges/${item.id}`, item.status === "ACTIVE" ? "DISABLED" : "ACTIVE", `${item.status === "ACTIVE" ? "Disable" : "Enable"} ${item.name}?`)}>
-                            {item.status === "ACTIVE" ? "Disable" : "Enable"}
+        {loading ? (
+          <div className="management-loading">
+            <span />
+            <span />
+            <span />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="management-empty">
+            <strong>No {section.toLowerCase()} found</strong>
+            <span>
+              {section === "Reviews"
+                ? "There are no items waiting in this queue."
+                : "Try refreshing or create a new item."}
+            </span>
+          </div>
+        ) : (
+          <div className="management-table-scroll">
+            <table className="management-table">
+              <thead>
+                {section === "Places" && (
+                  <tr><th>Place</th><th>Status</th><th>Discoveries</th><th>Actions</th></tr>
+                )}
+                {section === "Quests" && (
+                  <tr><th>Quest</th><th>Places</th><th>XP</th><th>Status</th><th>Actions</th></tr>
+                )}
+                {section === "Badges" && (
+                  <tr><th>Badge</th><th>Condition</th><th>Status</th><th>Actions</th></tr>
+                )}
+                {section === "Users" && (
+                  <tr><th>Explorer</th><th>Role</th><th>XP</th><th>Account</th><th>Actions</th></tr>
+                )}
+                {section === "XP adjustments" && (
+                  <tr><th>Explorer</th><th>Account</th><th>Lifetime XP</th><th>Action</th></tr>
+                )}
+                {section === "Reviews" && reviewType === "contributions" && (
+                  <tr><th>Submission</th><th>Submitted by</th><th>Location</th><th>Actions</th></tr>
+                )}
+                {section === "Reviews" && reviewType === "verification" && (
+                  <tr><th>Place</th><th>Explorer</th><th>Flag reason</th><th>Actions</th></tr>
+                )}
+                {section === "Community" && (
+                  <tr><th>Snap</th><th>Explorer</th><th>Place</th><th>Status</th><th>Actions</th></tr>
+                )}
+              </thead>
+              <tbody>
+                {section === "Places" &&
+                  (rows as ArtifactRow[]).map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.name}</strong><small>{item.humanReadableLocation} · {item.category.replaceAll("_", " ")}</small></td>
+                      <td><span className={statusClass(item.status)}>{item.status}</span></td>
+                      <td>{item.discoveryCount.toLocaleString()}</td>
+                      <td className="table-actions">
+                        <ActionButton onClick={() => setDialog({ kind: "artifact", item })}>Edit</ActionButton>
+                        <ActionButton onClick={() => setDialog({ kind: "references", item })}>Images</ActionButton>
+                        {item.status !== "ARCHIVED" && (
+                          <ActionButton
+                            tone="danger"
+                            disabled={!isActionable}
+                            onClick={() => void setLifecycle(`/api/v1/admin/artifacts/${item.id}`, "ARCHIVED", `Archive ${item.name}?`)}
+                          >
+                            Archive
                           </ActionButton>
-                        </td>
-                      </tr>
-                    ))}
-                  {section === "Users" &&
-                    (rows as UserRow[]).map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{item.displayName}</strong><small>@{item.username}</small></td>
-                        <td>{item.role}</td>
-                        <td>{item.lifetimeXp.toLocaleString()}</td>
-                        <td><span className={statusClass(item.accountStatus)}>{item.accountStatus}</span></td>
-                        <td className="table-actions">
-                          <ActionButton onClick={() => setDialog({ kind: "user", item })}>Edit</ActionButton>
-                          {item.accountStatus === "ACTIVE" ? (
-                            <ActionButton tone="danger" onClick={() => setDialog({ kind: "suspend", item })}>Suspend</ActionButton>
-                          ) : item.accountStatus === "SUSPENDED" ? (
-                            <ActionButton tone="primary" disabled={!isActionable} onClick={() => void mutate(`/api/v1/admin/users/${item.id}/reactivate`, "POST")}>Reactivate</ActionButton>
-                          ) : <span className="muted-label">Deleted</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  {section === "Reviews" && reviewType === "contributions" &&
-                    (rows as ContributionRow[]).map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{item.name}</strong><small>{item.category.replaceAll("_", " ")} · {item.photos.length} photos</small></td>
-                        <td>{item.submittedBy.displayName}<small>@{item.submittedBy.username}</small></td>
-                        <td>{item.humanReadableLocation ?? `${item.latitude.toFixed(3)}, ${item.longitude.toFixed(3)}`}</td>
-                        <td className="table-actions">
-                          <ActionButton tone="primary" onClick={() => setDialog({ kind: "contributionApprove", item })}>Approve</ActionButton>
-                          <ActionButton tone="danger" onClick={() => setDialog({ kind: "contributionReject", item })}>Reject</ActionButton>
-                        </td>
-                      </tr>
-                    ))}
-                  {section === "Reviews" && reviewType === "verification" &&
-                    (rows as VerificationRow[]).map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{item.artifact.name}</strong><small>{date(item.submittedAt)}</small></td>
-                        <td>{item.user.displayName}<small>@{item.user.username}</small></td>
-                        <td>{item.flagReason ?? "Flagged for review"}<small>GPS {item.gps.status} · CV {item.cv?.status ?? "N/A"}{item.verificationImageUrl ? <> · <a href={item.verificationImageUrl} target="_blank" rel="noreferrer">View evidence</a></> : null}</small></td>
-                        <td className="table-actions">
-                          <ActionButton tone="primary" onClick={() => setDialog({ kind: "verificationApprove", item })}>Approve</ActionButton>
-                          <ActionButton tone="danger" onClick={() => setDialog({ kind: "verificationReject", item })}>Reject</ActionButton>
-                        </td>
-                      </tr>
-                    ))}
-                  {section === "Community" &&
-                    (rows as CommunityRow[]).map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{item.caption || "Community snap"}</strong><small>{date(item.createdAt)}</small></td>
-                        <td>{item.author.displayName}<small>@{item.author.username}</small></td>
-                        <td>{item.artifact?.name ?? "Unlinked"}</td>
-                        <td><span className={statusClass(item.status)}>{item.status}</span></td>
-                        <td className="table-actions">
-                          <a className="action-button action-quiet" href={item.imageUrl} target="_blank" rel="noreferrer">View snap</a>
-                          {item.status !== "HIDDEN" && item.status !== "REMOVED" && (
-                            <ActionButton tone="danger" onClick={() => setDialog({ kind: "communityHide", item })}>Hide</ActionButton>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {section === "Places" && !loading && rows.length > 0 && (
-            <div className="management-pagination">
-              <button
-                className="secondary-action"
-                type="button"
-                disabled={cursorStack.length <= 1}
-                onClick={() => {
-                  setLoading(true);
-                  setCursorStack((stack) => stack.slice(0, -1));
-                }}
-              >
-                Previous
-              </button>
-              <span>Page {cursorStack.length}</span>
-              <button
-                className="secondary-action"
-                type="button"
-                disabled={!hasMore || !nextCursor}
-                onClick={() => {
-                  if (!nextCursor) return;
-                  setLoading(true);
-                  setCursorStack((stack) => [...stack, nextCursor]);
-                }}
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                {section === "XP adjustments" &&
+                  users.map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.displayName}</strong><small>@{item.username}</small></td>
+                      <td><span className={statusClass(item.accountStatus)}>{item.accountStatus}</span></td>
+                      <td>{item.lifetimeXp.toLocaleString()}</td>
+                      <td><ActionButton disabled={!isActionable || item.accountStatus === "DELETED"} onClick={() => setDialog({ kind: "xp", item })}>Adjust XP</ActionButton></td>
+                    </tr>
+                  ))}
+                {section === "Quests" &&
+                  (rows as QuestRow[]).map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.name}</strong><small>{item.description}</small></td>
+                      <td>{item.artifactIds.length}</td>
+                      <td>{item.xpReward.toLocaleString()}</td>
+                      <td><span className={statusClass(item.status)}>{item.status}</span></td>
+                      <td className="table-actions">
+                        <ActionButton onClick={() => setDialog({ kind: "quest", item })}>Edit</ActionButton>
+                        {item.status === "ACTIVE" && (
+                          <ActionButton tone="danger" disabled={!isActionable} onClick={() => void setLifecycle(`/api/v1/admin/quests/${item.id}`, "ARCHIVED", `Archive ${item.name}?`)}>
+                            Archive
+                          </ActionButton>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                {section === "Badges" &&
+                  (rows as BadgeRow[]).map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.name}</strong><small>{item.description}</small></td>
+                      <td>{item.condition.type.replaceAll("_", " ")}</td>
+                      <td><span className={statusClass(item.status)}>{item.status}</span></td>
+                      <td className="table-actions">
+                        <ActionButton onClick={() => setDialog({ kind: "badge", item })}>Edit</ActionButton>
+                        <ActionButton disabled={!isActionable} onClick={() => void setLifecycle(`/api/v1/admin/badges/${item.id}`, item.status === "ACTIVE" ? "DISABLED" : "ACTIVE", `${item.status === "ACTIVE" ? "Disable" : "Enable"} ${item.name}?`)}>
+                          {item.status === "ACTIVE" ? "Disable" : "Enable"}
+                        </ActionButton>
+                      </td>
+                    </tr>
+                  ))}
+                {section === "Users" &&
+                  (rows as UserRow[]).map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.displayName}</strong><small>@{item.username}</small></td>
+                      <td>{item.role}</td>
+                      <td>{item.lifetimeXp.toLocaleString()}</td>
+                      <td><span className={statusClass(item.accountStatus)}>{item.accountStatus}</span></td>
+                      <td className="table-actions">
+                        <ActionButton onClick={() => setDialog({ kind: "user", item })}>Edit</ActionButton>
+                        {item.accountStatus === "ACTIVE" ? (
+                          <ActionButton tone="danger" onClick={() => setDialog({ kind: "suspend", item })}>Suspend</ActionButton>
+                        ) : item.accountStatus === "SUSPENDED" ? (
+                          <ActionButton tone="primary" disabled={!isActionable} onClick={() => void mutate(`/api/v1/admin/users/${item.id}/reactivate`, "POST")}>Reactivate</ActionButton>
+                        ) : <span className="muted-label">Deleted</span>}
+                      </td>
+                    </tr>
+                  ))}
+                {section === "Reviews" && reviewType === "contributions" &&
+                  (rows as ContributionRow[]).map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.name}</strong><small>{item.category.replaceAll("_", " ")} · {item.photos.length} photos</small></td>
+                      <td>{item.submittedBy.displayName}<small>@{item.submittedBy.username}</small></td>
+                      <td>{item.humanReadableLocation ?? `${item.latitude.toFixed(3)}, ${item.longitude.toFixed(3)}`}</td>
+                      <td className="table-actions">
+                        <ActionButton tone="primary" onClick={() => setDialog({ kind: "contributionApprove", item })}>Approve</ActionButton>
+                        <ActionButton tone="danger" onClick={() => setDialog({ kind: "contributionReject", item })}>Reject</ActionButton>
+                      </td>
+                    </tr>
+                  ))}
+                {section === "Reviews" && reviewType === "verification" &&
+                  (rows as VerificationRow[]).map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.artifact.name}</strong><small>{date(item.submittedAt)}</small></td>
+                      <td>{item.user.displayName}<small>@{item.user.username}</small></td>
+                      <td>{item.flagReason ?? "Flagged for review"}<small>GPS {item.gps.status} · CV {item.cv?.status ?? "N/A"}{item.verificationImageUrl ? <> · <a href={item.verificationImageUrl} target="_blank" rel="noreferrer">View evidence</a></> : null}</small></td>
+                      <td className="table-actions">
+                        <ActionButton tone="primary" onClick={() => setDialog({ kind: "verificationApprove", item })}>Approve</ActionButton>
+                        <ActionButton tone="danger" onClick={() => setDialog({ kind: "verificationReject", item })}>Reject</ActionButton>
+                      </td>
+                    </tr>
+                  ))}
+                {section === "Community" &&
+                  (rows as CommunityRow[]).map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.caption || "Community snap"}</strong><small>{date(item.createdAt)}</small></td>
+                      <td>{item.author.displayName}<small>@{item.author.username}</small></td>
+                      <td>{item.artifact?.name ?? "Unlinked"}</td>
+                      <td><span className={statusClass(item.status)}>{item.status}</span></td>
+                      <td className="table-actions">
+                        <a className="action-button action-quiet" href={item.imageUrl} target="_blank" rel="noreferrer">View snap</a>
+                        {item.status !== "HIDDEN" && item.status !== "REMOVED" && (
+                          <ActionButton tone="danger" onClick={() => setDialog({ kind: "communityHide", item })}>Hide</ActionButton>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {section === "Places" && !loading && rows.length > 0 && (
+          <div className="management-pagination">
+            <button
+              className="secondary-action"
+              type="button"
+              disabled={cursorStack.length <= 1}
+              onClick={() => {
+                setLoading(true);
+                setCursorStack((stack) => stack.slice(0, -1));
+              }}
+            >
+              Previous
+            </button>
+            <span>Page {cursorStack.length}</span>
+            <button
+              className="secondary-action"
+              type="button"
+              disabled={!hasMore || !nextCursor}
+              onClick={() => {
+                if (!nextCursor) return;
+                setLoading(true);
+                setCursorStack((stack) => [...stack, nextCursor]);
+              }}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
 
       {dialog && (
         <div className="admin-modal-backdrop" role="presentation">

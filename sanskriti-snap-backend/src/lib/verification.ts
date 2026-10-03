@@ -165,6 +165,12 @@ export async function processVerificationAttempt(
     const cvClient = getCvClient();
 
     try {
+      console.info("[verification] starting cv compare", {
+        userId,
+        artifactId: String(artifact._id),
+        threshold,
+        topK,
+      });
       const compareResp = await cvClient.compare({
         image: imageUrl(input.verificationImagePublicId),
         artifactId: String(artifact._id),
@@ -172,6 +178,14 @@ export async function processVerificationAttempt(
       });
 
       const passed = compareResp.similarityScore >= threshold;
+      console.info("[verification] cv compare completed", {
+        userId,
+        artifactId: String(artifact._id),
+        passed,
+        similarityScore: compareResp.similarityScore,
+        referenceCount: compareResp.referenceCount,
+        model: compareResp.model,
+      });
       cvResultData = {
         required: true,
         status: passed ? "PASSED" : "FAILED",
@@ -187,6 +201,11 @@ export async function processVerificationAttempt(
         flagReasonText = `Similarity score ${compareResp.similarityScore.toFixed(3)} below threshold ${threshold}`;
       }
     } catch (err) {
+      console.error("[verification] cv compare failed", {
+        userId,
+        artifactId: String(artifact._id),
+        error: err instanceof Error ? err.message : String(err),
+      });
       if (err instanceof CvServiceUnavailableError) {
         if (err.reason === "timeout") {
           throw new ApiError(
@@ -239,9 +258,9 @@ export async function processVerificationAttempt(
       artifactId: artifact._id,
       verificationImage: input.verificationImagePublicId
         ? {
-            url: imageUrl(input.verificationImagePublicId),
-            publicId: input.verificationImagePublicId,
-          }
+          url: imageUrl(input.verificationImagePublicId),
+          publicId: input.verificationImagePublicId,
+        }
         : null,
       additionalPhotos: (input.additionalPhotos ?? []).map((p) => ({
         url: imageUrl(p.publicId),
@@ -313,9 +332,9 @@ export async function processVerificationAttempt(
           artifactId: artifact._id,
           verificationImage: input.verificationImagePublicId
             ? {
-                url: imageUrl(input.verificationImagePublicId),
-                publicId: input.verificationImagePublicId,
-              }
+              url: imageUrl(input.verificationImagePublicId),
+              publicId: input.verificationImagePublicId,
+            }
             : null,
           additionalPhotos: (input.additionalPhotos ?? []).map((p) => ({
             url: imageUrl(p.publicId),
@@ -336,14 +355,14 @@ export async function processVerificationAttempt(
           },
           cvVerification: artifact.requiresCV
             ? {
-                status: "PASSED",
-                similarityScore: cvResultData.similarityScore ?? null,
-                threshold: cvResultData.threshold ?? null,
-                topK: cvResultData.topK ?? null,
-                matchedReferenceIds: cvResultData.matchedReferenceIds?.map((id) => new Types.ObjectId(id)) ?? [],
-                model: cvResultData.model ?? { name: "unknown", version: "1.0" },
-                processedAt: new Date(),
-              }
+              status: "PASSED",
+              similarityScore: cvResultData.similarityScore ?? null,
+              threshold: cvResultData.threshold ?? null,
+              topK: cvResultData.topK ?? null,
+              matchedReferenceIds: cvResultData.matchedReferenceIds?.map((id) => new Types.ObjectId(id)) ?? [],
+              model: cvResultData.model ?? { name: "unknown", version: "1.0" },
+              processedAt: new Date(),
+            }
             : null,
           status: "VERIFIED",
           supersedesAttemptId: input.supersedesAttemptId ?? null,

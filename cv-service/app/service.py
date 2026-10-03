@@ -54,17 +54,34 @@ def run_compare(req: CompareRequest) -> CompareResponse:
     # 1. load references first: an empty set should cost no image fetch / GPU time
     from_db = req.artifactId is not None
     refs = load_artifact_references(req.artifactId) if from_db else _references_from_request(req)
+    logger.info(
+        "compare references source=%s artifact=%s loaded=%d",
+        "mongodb" if from_db else "request",
+        req.artifactId or "<inline>",
+        len(refs),
+    )
     if not refs:
         raise CvError("NO_REFERENCES", 404, "No loadable references for this artifact")
 
     # 2. model + dimension consistency -> typed errors, never a low score
     if from_db and any(r.model != expected_model for r in refs):
+        logger.warning(
+            "compare rejected artifact=%s reason=reference_model_mismatch expected=%s",
+            req.artifactId,
+            expected_model,
+        )
         raise CvError(
             "UNSUPPORTED_MODEL", 400,
             "Reference set was not embedded with the model used for the submission",
         )
     dims = {r.vector.size for r in refs}
     if dims != {embedder.dimension}:
+        logger.warning(
+            "compare rejected artifact=%s reason=dimension_mismatch dimensions=%s expected=%d",
+            req.artifactId or "<inline>",
+            sorted(dims),
+            embedder.dimension,
+        )
         raise CvError("DIMENSION_MISMATCH", 400, "Reference dimension does not match the model dimension")
 
     # 3. embed the submission and score

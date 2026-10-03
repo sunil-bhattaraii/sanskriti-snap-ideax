@@ -43,6 +43,13 @@ export async function GET(_request: Request, context: RouteContext) {
       .sort({ createdAt: -1 })
       .lean();
 
+    console.info("[admin references] list", {
+      artifactId: id,
+      count: references.length,
+      embedded: references.filter((ref) => ref.embeddingDimension > 0).length,
+      dimensions: references.map((ref) => ref.embeddingDimension),
+    });
+
     return NextResponse.json({
       items: references.map((ref) => ({
         id: String(ref._id),
@@ -90,6 +97,13 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const { imagePublicId, isCover, generateEmbedding, model } = parsed.data;
+
+    console.info("[admin references] create started", {
+      artifactId: id,
+      generateEmbedding: Boolean(generateEmbedding),
+      requestedModel: model ?? null,
+      isCover: Boolean(isCover),
+    });
 
     // Verify the image was uploaded via a token signed for this admin user.
     // Artifact reference images are signed with purpose VERIFICATION_GALLERY
@@ -163,6 +177,13 @@ export async function POST(request: Request, context: RouteContext) {
       embedding,
       embeddingDimension,
       cvModel,
+    });
+
+    console.info("[admin references] create completed", {
+      artifactId: id,
+      referenceId: String(reference._id),
+      embeddingDimension: reference.embeddingDimension,
+      cvModel: reference.cvModel,
     });
 
     if (reference.isCover) {
