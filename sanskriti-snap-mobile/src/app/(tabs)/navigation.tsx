@@ -27,6 +27,16 @@ import { distanceBetweenCoordinates } from '@/utils/geo';
 import Svg, { Circle } from 'react-native-svg';
 
 type Coordinate = [number, number];
+type TravelMode = 'walk' | 'run' | 'drive';
+
+const TRAVEL_MODE_CONFIG: Record<
+  TravelMode,
+  { label: string; icon: keyof typeof Ionicons.glyphMap; minutesPerKm: number }
+> = {
+  walk: { label: 'Walk', icon: 'walk-outline', minutesPerKm: 12 },
+  run: { label: 'Run', icon: 'fitness-outline', minutesPerKm: 6.5 },
+  drive: { label: 'Drive', icon: 'car-outline', minutesPerKm: 1.5 },
+};
 
 const getNearestRouteIndex = (
   coordinates: Coordinate[],
@@ -89,6 +99,7 @@ export default function NavigationScreen() {
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [distanceToArtifact, setDistanceToArtifact] = useState<number>(0);
   const [estimatedTime, setEstimatedTime] = useState<number>(0);
+  const [travelMode, setTravelMode] = useState<TravelMode>('walk');
   const [isNavigating, setIsNavigating] = useState(false);
   const [hasArrived, setHasArrived] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -174,8 +185,12 @@ export default function NavigationScreen() {
         )
         : null;
       setDistanceToArtifact(routeData.distance / 1000);
-      // 12 minutes per kilometer
-      setEstimatedTime(Math.ceil((routeData.distance / 1000) * 12));
+      setEstimatedTime(
+        Math.ceil(
+          (routeData.distance / 1000) *
+            TRAVEL_MODE_CONFIG[travelMode].minutesPerKm
+        )
+      );
 
       const nearestRouteIndex = getNearestRouteIndex(
         routeData.geometry.coordinates,
@@ -198,7 +213,7 @@ export default function NavigationScreen() {
         handleArrival();
       }
     }
-  }, [routeData, userLocation, artifact]);
+  }, [routeData, userLocation, artifact, travelMode]);
 
   useEffect(() => {
     if (!artifact || !userLocation) return;
@@ -379,6 +394,18 @@ export default function NavigationScreen() {
       return `${Math.round(km * 1000)}m`;
     }
     return `${km.toFixed(1)}km`;
+  };
+
+  const handleTravelModeChange = (mode: TravelMode) => {
+    setTravelMode(mode);
+    if (routeData) {
+      setEstimatedTime(
+        Math.ceil(
+          (routeData.distance / 1000) *
+            TRAVEL_MODE_CONFIG[mode].minutesPerKm
+        )
+      );
+    }
   };
 
   const getCurrentInstruction = () => {
@@ -603,6 +630,35 @@ export default function NavigationScreen() {
         </View>
 
         {!isNavigating && (
+          <View style={styles.travelModeRow}>
+            {(Object.keys(TRAVEL_MODE_CONFIG) as TravelMode[]).map((mode) => {
+              const config = TRAVEL_MODE_CONFIG[mode];
+              const isSelected = travelMode === mode;
+              return (
+                <TouchableOpacity
+                  key={mode}
+                  style={[
+                    styles.travelModeButton,
+                    isSelected && styles.travelModeButtonSelected,
+                  ]}
+                  onPress={() => handleTravelModeChange(mode)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`${config.label} route time`}
+                >
+                  <Ionicons
+                    name={config.icon}
+                    size={18}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.travelModeText}>{config.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {!isNavigating ? (
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={styles.primaryButton}
@@ -619,6 +675,16 @@ export default function NavigationScreen() {
               <Ionicons name="close" size={24} color={COLORS.tertiary} />
             </TouchableOpacity>
           </View>
+        ) : (
+          <TouchableOpacity
+          style={[styles.exitButton, styles.navigationExitButton]}
+          onPress={() => setIsNavigating(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Exit navigation"
+          >
+          <Ionicons name="close" size={24} color={COLORS.tertiary} />
+          <Text style={styles.exitButtonText}>Exit</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>
@@ -748,6 +814,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  travelModeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  travelModeButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(142, 59, 34, 0.25)',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  travelModeButtonSelected: {
+    backgroundColor: 'rgba(142, 59, 34, 0.08)',
+    borderColor: 'rgba(142, 59, 34, 0.45)',
+  },
+  travelModeText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   timeText: {
     fontSize: 32,
     fontWeight: '800',
@@ -822,5 +914,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  navigationExitButton: {
+    width: '100%',
+    height: 48,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  exitButtonText: {
+    color: COLORS.tertiary,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
