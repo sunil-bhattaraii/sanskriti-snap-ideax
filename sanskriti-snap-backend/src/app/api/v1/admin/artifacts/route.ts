@@ -19,7 +19,7 @@ import { requireAdmin } from "@/lib/auth";
 import {
   ArtifactStatus,
   CreateArtifactRequest,
-  PaginationQuery,
+  AdminArtifactQuery,
 } from "@/lib/contracts";
 import { connect, withTransaction } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
@@ -27,25 +27,27 @@ import { readJsonBody } from "@/lib/http";
 import { Artifact } from "@/models/artifact";
 import { AdminAction } from "@/models/community";
 
-const StatusQuery = PaginationQuery.extend({
-  status: ArtifactStatus.optional(),
-});
-
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
     await connect();
 
     const url = request.nextUrl;
-    const { limit, cursor, status } = StatusQuery.parse({
+    const { limit, cursor, status, q } = AdminArtifactQuery.parse({
       limit: url.searchParams.get("limit") ?? undefined,
       cursor: url.searchParams.get("cursor") ?? undefined,
       status: url.searchParams.get("status") ?? undefined,
+      q: url.searchParams.get("q") ?? undefined,
     });
 
     const filter: Record<string, unknown> = {};
     if (status) {
       filter.status = status;
+    }
+
+    if (q) {
+      const pattern = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [{ name: pattern }, { slug: pattern }, { description: pattern }];
     }
 
     if (cursor && Types.ObjectId.isValid(cursor)) {
@@ -71,6 +73,17 @@ export async function GET(request: NextRequest) {
       status: artifact.status,
       category: artifact.category,
       humanReadableLocation: artifact.humanReadableLocation,
+      description: artifact.description,
+      story: artifact.story ?? "",
+      tags: artifact.tags,
+      rarity: artifact.rarity,
+      altitudeMeters: artifact.altitudeMeters,
+      storyUnlockRadiusMeters: artifact.storyUnlockRadiusMeters,
+      verificationRadiusMeters: artifact.verificationRadiusMeters,
+      xpReward: artifact.xpReward,
+      requiresSnap: artifact.requiresSnap,
+      requiresCV: artifact.requiresCV,
+      warnings: artifact.warnings,
       // GeoJSON is [longitude, latitude] — reversed at the API boundary so the
       // stored order never reaches a client (AGENTS.md).
       latitude: artifact.location.coordinates[1],

@@ -1576,11 +1576,14 @@ contribution cannot be approved into nothing.
 | Method | Path | Body |
 | --- | --- | --- |
 | `POST` | `/api/v1/admin/quests` | `{ name, description, artifactIds: string[], badgeId?: string \| null }` |
-| `PATCH` | `/api/v1/admin/quests/:id` | partial of the above |
+| `GET` | `/api/v1/admin/quests?limit=&cursor=` | — |
+| `PATCH` | `/api/v1/admin/quests/:id` | partial of the above, including `status: "ACTIVE" \| "ARCHIVED"` |
 | `POST` | `/api/v1/admin/badges` | `{ name, description, iconUrl?: string \| null, condition: BadgeCondition }` |
-| `PATCH` | `/api/v1/admin/badges/:id` | partial of the above |
+| `GET` | `/api/v1/admin/badges?limit=&cursor=` | — |
+| `PATCH` | `/api/v1/admin/badges/:id` | partial of the above, including `status: "ACTIVE" \| "DISABLED"` |
 | `GET` | `/api/v1/admin/users?q=&limit=&cursor=` | — |
 | `POST` | `/api/v1/admin/users/:id/suspend` | `{ reason: string, suspendedUntil?: string \| null }` |
+| `POST` | `/api/v1/admin/users/:id/reactivate` | — |
 | `GET` | `/api/v1/admin/community?status=` | — |
 | `POST` | `/api/v1/admin/community/:id/hide` | `{ reason: string }` |
 | `POST` | `/api/v1/admin/xp-adjustments` | `XpAdjustmentRequest` |

@@ -88,7 +88,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         [
           {
             adminId: ctx.user._id,
-            action: "QUEST_UPDATED",
+            action:
+              update.status === "ARCHIVED"
+                ? "QUEST_ARCHIVED"
+                : "QUEST_UPDATED",
             targetType: "QUEST",
             targetId: current._id,
             metadata: { fields: Object.keys(update) },

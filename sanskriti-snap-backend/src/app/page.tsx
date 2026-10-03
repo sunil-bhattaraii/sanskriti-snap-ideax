@@ -2,6 +2,7 @@
 
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useState } from "react";
+import Management, { type Section } from "./admin/Management";
 import "./admin.css";
 
 type DashboardStats = {
@@ -59,7 +60,7 @@ function Icon({
   name,
   size = 20,
 }: {
-  name: "dashboard" | "landmark" | "review" | "community" | "quest" | "refresh" | "arrow" | "pin";
+  name: "dashboard" | "landmark" | "review" | "community" | "quest" | "badge" | "refresh" | "arrow" | "pin";
   size?: number;
 }) {
   const paths: Record<typeof name, string> = {
@@ -68,6 +69,7 @@ function Icon({
     review: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
     community: "M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm10 10v-2a4 4 0 0 0-3-3.87m-1-13.13a4 4 0 0 1 0 7.75",
     quest: "m12 3 2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6-4.36-4.25 6.03-.88L12 3z",
+    badge: "M12 3 4.5 6v5.5c0 4.5 3.2 7.9 7.5 9.5 4.3-1.6 7.5-5 7.5-9.5V6L12 3zm-3 8 2 2 4-4",
     refresh: "M20 7v5h-5M4 17v-5h5m11-1a8 8 0 0 0-14.7-4M4 13a8 8 0 0 0 14.7 4",
     arrow: "M5 12h14m-7-7 7 7-7 7",
     pin: "M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0zm-5 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
@@ -110,6 +112,9 @@ function formatDate(value: string) {
 }
 
 function Dashboard({ displayName }: { displayName: string }) {
+  const [activeSection, setActiveSection] = useState<"Overview" | Section>(
+    "Overview",
+  );
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,15 +214,15 @@ function Dashboard({ displayName }: { displayName: string }) {
 
         <div className="sidebar-label">Workspace</div>
         <nav className="sidebar-nav" aria-label="Admin navigation">
-          <a className="nav-item active" href="#overview">
+          <button aria-label="Overview" className={`nav-item ${activeSection === "Overview" ? "active" : ""}`} onClick={() => setActiveSection("Overview")} type="button">
             <Icon name="dashboard" />
             <span>Overview</span>
-          </a>
-          <a className="nav-item" href="#artifacts">
+          </button>
+          <button aria-label="Places" className={`nav-item ${activeSection === "Places" ? "active" : ""}`} onClick={() => setActiveSection("Places")} type="button">
             <Icon name="landmark" />
             <span>Places</span>
-          </a>
-          <a className="nav-item" href="#reviews">
+          </button>
+          <button aria-label="Review queue" className={`nav-item ${activeSection === "Reviews" ? "active" : ""}`} onClick={() => setActiveSection("Reviews")} type="button">
             <Icon name="review" />
             <span>Review queue</span>
             {stats && stats.pendingContributions + stats.flaggedVerifications > 0 && (
@@ -225,15 +230,27 @@ function Dashboard({ displayName }: { displayName: string }) {
                 {stats.pendingContributions + stats.flaggedVerifications}
               </span>
             )}
-          </a>
-          <a className="nav-item" href="#community">
+          </button>
+          <button aria-label="Community" className={`nav-item ${activeSection === "Community" ? "active" : ""}`} onClick={() => setActiveSection("Community")} type="button">
             <Icon name="community" />
             <span>Community</span>
-          </a>
-          <a className="nav-item" href="#quests">
+          </button>
+          <button aria-label="Quests" className={`nav-item ${activeSection === "Quests" ? "active" : ""}`} onClick={() => setActiveSection("Quests")} type="button">
             <Icon name="quest" />
             <span>Quests</span>
-          </a>
+          </button>
+          <button aria-label="Badges" className={`nav-item ${activeSection === "Badges" ? "active" : ""}`} onClick={() => setActiveSection("Badges")} type="button">
+            <Icon name="badge" />
+            <span>Badges</span>
+          </button>
+          <button aria-label="Users" className={`nav-item ${activeSection === "Users" ? "active" : ""}`} onClick={() => setActiveSection("Users")} type="button">
+            <Icon name="community" />
+            <span>Users</span>
+          </button>
+          <button aria-label="XP adjustments" className={`nav-item ${activeSection === "XP adjustments" ? "active" : ""}`} onClick={() => setActiveSection("XP adjustments")} type="button">
+            <Icon name="quest" />
+            <span>XP adjustments</span>
+          </button>
         </nav>
 
         <div className="sidebar-bottom">
@@ -250,7 +267,7 @@ function Dashboard({ displayName }: { displayName: string }) {
           <div className="breadcrumb">
             <span>Workspace</span>
             <span className="breadcrumb-divider">/</span>
-            <strong>Overview</strong>
+            <strong>{activeSection}</strong>
           </div>
           <div className="topbar-user">
             <span className="admin-label">Administrator</span>
@@ -258,7 +275,7 @@ function Dashboard({ displayName }: { displayName: string }) {
           </div>
         </header>
 
-        <div className="dashboard-content">
+        {activeSection === "Overview" ? <div className="dashboard-content">
           <section className="welcome-row" id="overview">
             <div>
               <div className="eyebrow">SANSKRITI SNAP · ADMIN</div>
@@ -476,7 +493,9 @@ function Dashboard({ displayName }: { displayName: string }) {
             </a>
           </section>
           <div id="quests" className="section-anchor" />
-        </div>
+        </div> : <div className="dashboard-content management-content">
+          <Management key={activeSection} section={activeSection} />
+        </div>}
       </main>
     </div>
   );
