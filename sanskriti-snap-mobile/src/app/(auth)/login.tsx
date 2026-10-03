@@ -43,7 +43,7 @@ export default function LoginScreen() {
         throw new Error('Additional sign-in verification is required.');
       }
       await setActive({ session: signIn.createdSessionId });
-      router.replace('/');
+      router.replace('/(tabs)/home');
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
     } finally {
@@ -55,7 +55,7 @@ export default function LoginScreen() {
     setGoogleLoading(true);
     try {
       await googleSignIn();
-      router.replace('/');
+      router.replace('/(tabs)/home');
     } catch (error: any) {
       Alert.alert('Google Sign-In Failed', error.message);
     } finally {

@@ -7,7 +7,7 @@ import * as Location from "expo-location";
 import AppHeader from "@/components/AppHeader";
 import FeaturedDiscoveryCard from "@/components/FeaturedDiscoveryCard";
 import { COLORS } from "@/constants/colors";
-import { backendClient } from "@/services/backendClient";
+import { offlineFirstRequest } from "@/services/cached-api";
 import { useAuthStore } from "@/store/authstore";
 
 type FeaturedArtifact = { id: string; name: string; description: string; xp: number; imageUrl: string; discoveryCount: number };
@@ -27,43 +27,30 @@ export default function HomeScreen() {
         const permission = await Location.requestForegroundPermissionsAsync();
         let artifacts: FeaturedArtifact[] = [];
 
+        let endpoint = "/artifacts/featured?limit=3";
         if (permission.status === "granted") {
           const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          const { data, error } = await backendClient.rpc("nearby_artifacts", {
-            p_lat: location.coords.latitude,
-            p_lng: location.coords.longitude,
-            p_radius_m: 5000,
-          });
-
-          if (error) throw error;
-          artifacts = (data ?? []).map((artifact) => ({
-            id: artifact.id,
-            name: artifact.name,
-            description: artifact.description,
-            xp: artifact.xp_value,
-            imageUrl: artifact.referenceImageUrls?.[0] ?? artifact.coverImageUrl ?? "",
-            discoveryCount: artifact.discoveryCount ?? 0,
-          }));
-        } else {
-          const { data, error } = await backendClient
-            .from("artifacts")
-            .select("id, name, description, xp_value, reference_images, discovery_count")
-            .eq("status", "active")
-            .order("discovery_count", { ascending: false })
-            .limit(3);
-
-          if (error) throw error;
-          artifacts = (data ?? []).map((artifact) => ({
-            id: artifact.id,
-            name: artifact.name,
-            description: artifact.description,
-            xp: artifact.xp_value,
-            imageUrl: artifact.referenceImageUrls?.[0] ?? artifact.coverImageUrl ?? "",
-            discoveryCount: artifact.discoveryCount ?? 0,
-          }));
+          endpoint = `/artifacts/featured?latitude=${location.coords.latitude}&longitude=${location.coords.longitude}&limit=3`;
         }
 
-        artifacts.sort((first, second) => second.discoveryCount - first.discoveryCount);
+        const response = await offlineFirstRequest<{
+          items: Array<{
+            id: string;
+            name: string;
+            description: string;
+            xpReward: number;
+            coverImageUrl: string | null;
+            discoveryCount: number;
+          }>;
+        }>(endpoint, ['featured-artifacts', endpoint]);
+        artifacts = response.items.map((artifact) => ({
+          id: artifact.id,
+          name: artifact.name,
+          description: artifact.description,
+          xp: artifact.xpReward,
+          imageUrl: artifact.coverImageUrl ?? "",
+          discoveryCount: artifact.discoveryCount ?? 0,
+        }));
         if (mounted) setFeaturedArtifacts(artifacts.slice(0, 3));
       } catch (error) {
         console.error("Unable to load popular discoveries:", error);

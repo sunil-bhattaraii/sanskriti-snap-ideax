@@ -3,12 +3,39 @@ import { tokenCache } from '@clerk/expo/token-cache';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { configureApiTokenProvider } from '@/services/api';
 import { refreshProximityGeofences } from '@/services/proximity-notifications';
 import { useAuthStore } from '@/store/authstore';
+import {
+  configureOfflineNetwork,
+  queryClient,
+  restoreOfflineQueryCache,
+} from '@/services/offline';
+import { processPendingVerifications } from '@/services/upload-queue';
+import NetInfo from '@react-native-community/netinfo';
+
+function OfflineServices() {
+  useEffect(() => {
+    const cleanup = configureOfflineNetwork();
+    void restoreOfflineQueryCache();
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) void processPendingVerifications();
+    });
+    void NetInfo.fetch().then((state) => {
+      if (state.isConnected) void processPendingVerifications();
+    });
+    return () => {
+      cleanup();
+      unsubscribe();
+    };
+  }, []);
+
+  return null;
+}
 
 function AuthenticatedLayout() {
   const router = useRouter();
@@ -93,13 +120,16 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <SafeAreaProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <BottomSheetModalProvider>
-            <AuthenticatedLayout />
-          </BottomSheetModalProvider>
-        </GestureHandlerRootView>
-      </SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <OfflineServices />
+        <SafeAreaProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <BottomSheetModalProvider>
+              <AuthenticatedLayout />
+            </BottomSheetModalProvider>
+          </GestureHandlerRootView>
+        </SafeAreaProvider>
+      </QueryClientProvider>
     </ClerkProvider>
   );
 }

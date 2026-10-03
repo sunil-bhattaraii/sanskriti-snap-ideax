@@ -10,8 +10,7 @@ import SubmissionPreview from "../../components/verification/SubmissionPreview";
 import VerificationInfo from "../../components/verification/VerificationInfo";
 import VerificationStatus from "../../components/verification/VerificationStatus";
 import { COLORS } from "../../constants/colors";
-import { backendClient } from "@/services/backendClient";
-import { useAuthStore } from "@/store/authstore";
+import { ApiRequestError, apiRequest } from "@/services/api";
 
 type VerificationData = {
   submittedImageUri: string;
@@ -28,9 +27,6 @@ type VerificationData = {
 export default function VerificationPendingScreen() {
   const router = useRouter();
   const { submissionId } = useLocalSearchParams<{ submissionId: string }>();
-  const user = useAuthStore((state) => state.user);
-  const fetchProfile = useAuthStore((state) => state.fetchProfile);
-
   const [verificationData, setVerificationData] = useState<VerificationData | null>(null);
   const [checking, setChecking] = useState(false);
 
@@ -40,84 +36,53 @@ export default function VerificationPendingScreen() {
 
     const fetchData = async () => {
       try {
-        const { data: submission, error: subError } = await backendClient
-          .from("submissions")
-          .select("main_snap_url, verification_status, cv_status, artifact_id, gps_lat, gps_lng")
-          .eq("id", submissionId)
-          .single();
+        const attempt = await apiRequest<{
+          id: string;
+          status: string;
+          artifactId: string;
+          artifact: {
+            name: string;
+            humanReadableLocation: string;
+            xpReward: number;
+          };
+          verificationImageUrl: string | null;
+          gps: { status: string; distanceMeters: number | null; requiredMeters: number };
+          cv: { status: string } | null;
+          discoveryId: string | null;
+        }>(`/verification-attempts/${encodeURIComponent(submissionId)}`);
 
-        if (subError || !submission) return;
-
-        if (submission.verification_status === "verified") {
-          const { data: discovery } = await backendClient
-            .from("discoveries")
-            .select("id")
-            .eq("submission_id", submissionId)
-            .maybeSingle();
-          if (discovery) {
+        if (attempt.discoveryId) {
             router.replace({
               pathname: "/(tabs)/discovery-success",
-              params: { discoveryId: discovery.id },
+              params: { discoveryId: attempt.discoveryId },
             });
-          }
           return;
         }
 
-        if (submission.verification_status === "rejected") {
-          const { data: nearbyArtifacts } = await backendClient.rpc("nearby_artifacts", {
-            p_lat: submission.gps_lat,
-            p_lng: submission.gps_lng,
-            p_radius_m: 2147483647,
-          });
-          const artifactResult = nearbyArtifacts?.find(
-            (item) => item.id === submission.artifact_id,
-          );
+        if (attempt.status === "REJECTED") {
           router.replace({
             pathname: "/(tabs)/verification-failed",
             params: {
-              artifactId: submission.artifact_id,
-              distanceRemaining: String(
-                Math.max(
-                  0,
-                  Math.round(
-                    (artifactResult?.distance_m ?? 0) -
-                    (artifactResult?.verification_radius_m ?? 0),
-                  ),
-                ),
-              ),
+              artifactId: attempt.artifactId,
+              distanceRemaining: String(Math.max(
+                0,
+                Math.round((attempt.gps?.distanceMeters ?? 0) - (attempt.gps?.requiredMeters ?? 0)),
+              )),
             },
           });
           return;
         }
 
-        const { data: artifact, error: artError } = await backendClient
-          .from("artifacts")
-          .select("name, human_readable_location, xp_value")
-          .eq("id", submission.artifact_id)
-          .single();
-
-        if (artError || !artifact) return;
-
-        const status = submission.verification_status === "pending" ? "verifying" : "analyzing";
-
-        let imageUrl = submission.main_snap_url ?? "";
-        if (imageUrl) {
-          const { data: signedImage } = await backendClient.storage
-            .from("submission-snaps")
-            .createSignedUrl(imageUrl, 3600);
-          imageUrl = signedImage?.signedUrl ?? imageUrl;
-        }
-
         setVerificationData({
-          submittedImageUri: imageUrl,
-          placeName: artifact.name,
-          location: artifact.human_readable_location,
-          verificationStatus: status,
-          progressPercentage: submission.cv_status === "pending" ? 45 : 80,
-          currentStep: submission.cv_status === "pending" ? "Waiting for verification" : "Analyzing visual geometry",
+          submittedImageUri: attempt.verificationImageUrl ?? "",
+          placeName: attempt.artifact.name,
+          location: attempt.artifact.humanReadableLocation,
+          verificationStatus: "verifying",
+          progressPercentage: attempt.cv?.status === "PENDING" ? 45 : 80,
+          currentStep: attempt.cv?.status === "PENDING" ? "Waiting for verification" : "Analyzing visual geometry",
           estimatedTime: "2-3 minutes",
-          xpReward: artifact.xp_value,
-          artifactId: submission.artifact_id,
+          xpReward: attempt.artifact.xpReward,
+          artifactId: attempt.artifactId,
         });
       } catch (error) {
         console.error("Error fetching verification data:", error);
@@ -144,79 +109,25 @@ export default function VerificationPendingScreen() {
         accuracy: Location.Accuracy.High,
       });
 
-      const { data: nearbyArtifacts, error: artifactError } = await backendClient.rpc(
-        "nearby_artifacts",
-        {
-          p_lat: location.coords.latitude,
-          p_lng: location.coords.longitude,
-          p_radius_m: 10000,
-        }
-      );
-
-      if (artifactError) throw artifactError;
-
-      const artifact = (nearbyArtifacts || []).find(
-        (item: any) => item.id === verificationData.artifactId
-      );
-
-      if (!artifact) {
-        throw new Error("Could not locate this artifact nearby.");
-      }
-
-      const distance = Number(artifact.distance_m);
-      const gpsVerified = distance <= artifact.verification_radius_m;
-
-      const { error: updateError } = await backendClient
-        .from("submissions")
-        .update({
-          gps_lat: location.coords.latitude,
-          gps_lng: location.coords.longitude,
-          gps_accuracy_m: location.coords.accuracy,
-          gps_altitude_m: location.coords.altitude,
-          gps_captured_at: new Date(location.timestamp).toISOString(),
-          gps_verified: gpsVerified,
-          cv_status: "pass",
-          cv_similarity_score: 1,
-          verification_status: gpsVerified ? "pending" : "rejected",
-        })
-        .eq("id", submissionId);
-
-      if (updateError) throw updateError;
-
-      if (!gpsVerified) {
-        router.replace({
-          pathname: "/(tabs)/verification-failed",
-          params: {
-            artifactId: verificationData.artifactId,
-            distanceRemaining: String(
-              Math.max(0, Math.round(distance - artifact.verification_radius_m)),
-            ),
+      const result = await apiRequest<{
+        discoveryId: string | null;
+        xpAwarded: number;
+        gps: { status: string; distanceMeters: number | null; requiredMeters: number };
+      }>(`/verification-attempts/${encodeURIComponent(submissionId)}/recheck`, {
+        method: "POST",
+        body: JSON.stringify({
+          location: {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            accuracyMeters: Math.max(1, Math.min(100, location.coords.accuracy ?? 100)),
+            capturedAt: new Date(location.timestamp).toISOString(),
           },
-        });
-        return;
+        }),
+      });
+
+      if (!result.discoveryId) {
+        throw new Error("Verification did not produce a discovery.");
       }
-
-      const { data: finalization, error: finalizationError } = await backendClient.rpc(
-        "finalize_discovery",
-        {
-          p_submission_id: submissionId,
-        }
-      );
-
-      if (finalizationError) throw finalizationError;
-
-      const result = finalization as {
-        success?: boolean;
-        message?: string;
-        xp_awarded?: number;
-        discovery_id?: string;
-      };
-
-      if (!result.success || !result.discovery_id) {
-        throw new Error(result.message || "Verification failed.");
-      }
-
-      if (user) await fetchProfile(user.id);
 
       // Update UI to show success
       setVerificationData((current) =>
@@ -226,14 +137,14 @@ export default function VerificationPendingScreen() {
             verificationStatus: "verified",
             progressPercentage: 100,
             currentStep: "Verification complete",
-            xpReward: result.xp_awarded || current.xpReward,
+            xpReward: result.xpAwarded || current.xpReward,
           }
           : current
       );
 
       Alert.alert(
         "Discovery verified",
-        `You earned ${result.xp_awarded || verificationData.xpReward} XP.`,
+        `You earned ${result.xpAwarded || verificationData.xpReward} XP.`,
         [
           {
             text: "Continue",
@@ -248,9 +159,13 @@ export default function VerificationPendingScreen() {
         ],
         { cancelable: false }
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error("Verification error:", error);
-      Alert.alert("Verification failed", error.message || "We could not verify this submission.");
+      if (error instanceof ApiRequestError && error.code === "GPS_OUTSIDE_RADIUS") {
+        Alert.alert("Verification failed", error.message);
+      } else {
+        Alert.alert("Verification failed", error instanceof Error ? error.message : "We could not verify this submission.");
+      }
     } finally {
       setChecking(false);
     }

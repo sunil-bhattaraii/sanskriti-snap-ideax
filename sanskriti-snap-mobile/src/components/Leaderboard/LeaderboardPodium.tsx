@@ -17,10 +17,13 @@ export default function LeaderboardPodium({ users }: LeaderboardPodiumProps) {
 
     const isFirst = position === 1;
     const avatarSize = isFirst ? 88 : 64;
-    const rankBadgeColor = isFirst ? COLORS.secondary : '#FEE2E2';
-    const rankTextColor = isFirst ? '#FFFFFF' : COLORS.primary;
-    const xpBadgeBg = isFirst ? '#FEF3C7' : '#FEE2E2';
-    const xpBadgeText = isFirst ? '#92400E' : COLORS.primary;
+    const rankBadgeColor =
+      position === 1 ? '#D4AF37' : position === 2 ? '#C0C0C0' : '#CD7F32';
+    const rankTextColor = '#FFFFFF';
+    const xpBadgeBg =
+      position === 1 ? '#FEF3C7' : position === 2 ? '#F3F4F6' : '#F5E2D0';
+    const xpBadgeText =
+      position === 1 ? '#92400E' : position === 2 ? '#4B5563' : '#8B4513';
 
     return (
       <View style={isFirst ? styles.firstPlaceContainer : styles.podiumUserContainer}>
@@ -154,15 +157,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   podiumBlockFirst: {
-    height: 80,
-    backgroundColor: COLORS.primary,
+    height: 116,
+    backgroundColor: '#D4AF37',
   },
   podiumBlockSecond: {
-    height: 50,
-    backgroundColor: COLORS.disabled,
+    height: 82,
+    backgroundColor: '#C0C0C0',
   },
   podiumBlockThird: {
-    height: 50,
-    backgroundColor: COLORS.disabled,
+    height: 64,
+    backgroundColor: '#CD7F32',
   },
 });

@@ -14,6 +14,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { COLORS } from '../../../constants/colors';
+import { persistCapturedPhoto } from '@/services/local-photos';
 
 const { width, height } = Dimensions.get('window');
 
@@ -178,12 +179,15 @@ export default function SnapCameraScreen() {
           return;
         }
 
+        const persistentPhoto = await persistCapturedPhoto(photo.uri, artifactId);
+
         // Navigate to review screen with all necessary verification data
         router.push({
           pathname: '/(tabs)/submission-review',
           params: {
             artifactId,
-            imageUri: photo.uri,
+            imageUri: persistentPhoto.localUri,
+            localPhotoId: persistentPhoto.id,
             gpsLat: String(coordinates.latitude),
             gpsLng: String(coordinates.longitude),
             gpsAccuracy:
