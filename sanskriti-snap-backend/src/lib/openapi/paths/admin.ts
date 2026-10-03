@@ -107,13 +107,15 @@ export const adminPaths: PathsFragment = {
     post: op({
       tags: [ADMIN],
       summary: "Add a reference image",
-      description: `${REQUIRES_ADMIN} The image must have been signed with purpose VERIFICATION_GALLERY. Optionally sets it as cover.`,
+      description: `${REQUIRES_ADMIN} The image must have been signed with purpose VERIFICATION_GALLERY. Set \`generateEmbedding\` to call the CV service from the server and store its result; \`model\` is optional. Optionally sets it as cover.`,
       params: [objectIdPath("id")],
       body: toOpenApiSchema(CreateReferenceRequest),
       okStatus: 201,
       errors: [
         "NOT_FOUND",
         "VALIDATION_FAILED",
+        "CV_UNAVAILABLE",
+        "CV_TIMEOUT",
         "UNAUTHENTICATED",
         "ACCOUNT_SUSPENDED",
         "FORBIDDEN",

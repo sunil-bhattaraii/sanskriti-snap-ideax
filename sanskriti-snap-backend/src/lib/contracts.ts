@@ -302,8 +302,17 @@ export const CreateReferenceRequest = z
   .object({
     imagePublicId: z.string().min(1),
     isCover: z.boolean().optional(),
+    generateEmbedding: z.boolean().optional(),
+    model: z
+      .object({ name: z.string().min(1), version: z.string().min(1) })
+      .strict()
+      .optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => value.generateEmbedding === true || !value.model, {
+    message: "model can only be supplied when generateEmbedding is true.",
+    path: ["model"],
+  });
 
 /**
  * docs/API Contract.md 9 — pre-computed embedding path.

@@ -1534,8 +1534,10 @@ type UpdateArtifactRequest =
 type CreateReferenceRequest = {
   imagePublicId: string;                // previously signed via POST /api/v1/media/sign
   isCover?: boolean;                    // defaults to false
+  generateEmbedding?: boolean;           // when true, server calls CV /embed and stores the vector
+  model?: { name: string; version: string }; // optional; omit to use the CV service default
 };
-// server fetches the image from Cloudinary, computes the embedding, stores ArtifactReference
+// model is only used when generateEmbedding is true; otherwise the reference remains pending.
 
 type CreateEmbeddingRequest = {
   embedding: number[];
