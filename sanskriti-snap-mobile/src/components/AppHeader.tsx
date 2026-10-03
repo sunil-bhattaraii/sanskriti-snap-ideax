@@ -1,11 +1,12 @@
-import { COLORS } from '@/constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
-import { type ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS } from '@/constants/colors';
 import ProfileAvatar from './ProfileAvatar';
+import { useAuthStore } from '@/store/authstore';
 
 interface AppHeaderProps {
   title?: string;
@@ -26,10 +27,8 @@ export default function AppHeader({
 }: AppHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
-  // Static fallback data for pure UI display
-  const displayName = 'Guest';
-  const profileImageUrl = undefined;
+  const { user, profile } = useAuthStore();
+  const displayName = profile?.display_name ?? user?.email ?? 'Guest';
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
@@ -94,7 +93,7 @@ export default function AppHeader({
         {rightActions}
         <ProfileAvatar
           displayName={displayName}
-          imageUrl={profileImageUrl}
+          imageUrl={profile?.profile_image_url}
           size={36}
           onPress={() => router.push('/(tabs)/profile')}
         />
@@ -123,8 +122,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderBottomWidth: 0,
   },
-  side: {
-    minWidth: 40,
+  side: { 
+    minWidth: 40, 
     zIndex: 1,
     alignItems: 'flex-start',
   },
@@ -137,9 +136,9 @@ const styles = StyleSheet.create({
     gap: 12,
     zIndex: 1,
   },
-  iconButton: {
-    width: 40,
-    height: 40,
+  iconButton: { 
+    width: 40, 
+    height: 40, 
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 20,
@@ -151,30 +150,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
+  // Updated to match the logoText size and weight
   title: {
-    fontSize: 18,
+    fontSize: 18, 
     fontWeight: '800',
     color: COLORS.text,
     letterSpacing: 0.5,
   },
-  overlayText: {
+  overlayText: { 
     color: COLORS.white,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6
+  logoContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 6 
   },
-  logoImage: {
-    width: 28,
-    height: 28
+  logoImage: { 
+    width: 28, 
+    height: 28 
   },
-  logoText: {
-    fontSize: 18,
-    fontWeight: '800',
+  // Logo text remains the same, title now matches it
+  logoText: { 
+    fontSize: 18, 
+    fontWeight: '800', 
     color: COLORS.primary,
     letterSpacing: 0.5,
   },
