@@ -191,6 +191,8 @@ export default function SubmissionReviewScreen() {
               );
 
               const result = await apiRequestWithIdempotency<{
+                attemptId: string;
+                status: 'VERIFIED' | 'FLAGGED';
                 discoveryId: string | null;
                 gps: { status: string; distanceMeters: number | null; requiredMeters: number };
               }>('/verification-attempts', {
@@ -220,7 +222,14 @@ export default function SubmissionReviewScreen() {
                 });
                 return;
               }
-              if (result.gps.status !== 'WITHIN_RADIUS') {
+              if (result.status === 'FLAGGED') {
+                router.replace({
+                  pathname: '/(tabs)/verification-pending',
+                  params: { submissionId: result.attemptId },
+                });
+                return;
+              }
+              if (result.gps.status !== 'PASSED' && result.gps.status !== 'WITHIN_RADIUS') {
                 router.replace({
                   pathname: '/(tabs)/verification-failed',
                   params: {

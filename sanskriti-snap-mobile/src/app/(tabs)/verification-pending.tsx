@@ -77,10 +77,12 @@ export default function VerificationPendingScreen() {
           submittedImageUri: attempt.verificationImageUrl ?? "",
           placeName: attempt.artifact.name,
           location: attempt.artifact.humanReadableLocation,
-          verificationStatus: "verifying",
-          progressPercentage: attempt.cv?.status === "PENDING" ? 45 : 80,
-          currentStep: attempt.cv?.status === "PENDING" ? "Waiting for verification" : "Analyzing visual geometry",
-          estimatedTime: "2-3 minutes",
+          verificationStatus: attempt.status === "FLAGGED" ? "analyzing" : "verifying",
+          progressPercentage: attempt.status === "FLAGGED" ? 80 : 45,
+          currentStep: attempt.status === "FLAGGED"
+            ? "Awaiting verification review"
+            : "Verification complete",
+          estimatedTime: "Review usually takes 2-3 minutes",
           xpReward: attempt.artifact.xpReward,
           artifactId: attempt.artifactId,
         });
@@ -110,6 +112,8 @@ export default function VerificationPendingScreen() {
       });
 
       const result = await apiRequest<{
+        attemptId: string;
+        status: "VERIFIED" | "FLAGGED";
         discoveryId: string | null;
         xpAwarded: number;
         gps: { status: string; distanceMeters: number | null; requiredMeters: number };
@@ -126,6 +130,13 @@ export default function VerificationPendingScreen() {
       });
 
       if (!result.discoveryId) {
+        if (result.status === "FLAGGED") {
+          router.replace({
+            pathname: "/(tabs)/verification-pending",
+            params: { submissionId: result.attemptId },
+          });
+          return;
+        }
         throw new Error("Verification did not produce a discovery.");
       }
 
@@ -152,7 +163,7 @@ export default function VerificationPendingScreen() {
               router.replace({
                 pathname: "/(tabs)/discovery-success",
                 params: {
-                  discoveryId: result.discovery_id,
+                  discoveryId: result.discoveryId,
                 },
               }),
           },

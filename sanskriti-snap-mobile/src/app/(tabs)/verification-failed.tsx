@@ -86,7 +86,7 @@ export default function VerificationFailedScreen() {
         {/* Footer Link */}
         <TouchableOpacity
           style={styles.footerLink}
-          onPress={() => router.replace("/")}
+          onPress={() => router.replace("/(tabs)/home")}
         >
           <Text style={styles.footerText}>Continue Exploring</Text>
         </TouchableOpacity>
