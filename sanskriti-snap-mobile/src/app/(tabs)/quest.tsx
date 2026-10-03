@@ -45,7 +45,7 @@ export default function QuestsScreen() {
       return quest.current_progress > 0 && quest.current_progress < quest.total_progress;
     }
     if (activeFilter === "completed") {
-      return quest.total_progress > 0 && quest.current_progress >= quest.total_progress;
+      return quest.completed || (quest.total_progress > 0 && quest.current_progress >= quest.total_progress);
     }
     return true;
   });
