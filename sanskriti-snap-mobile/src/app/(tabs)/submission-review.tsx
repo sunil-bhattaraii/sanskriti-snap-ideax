@@ -18,9 +18,13 @@ import VerificationNotice from '../../components/submission/VerificationNotice';
 import type { SubmissionData } from '../../constants/data/mockSubmission';
 import { ApiRequestError, apiRequest, apiRequestWithIdempotency } from '@/services/api';
 import { useAuthStore } from '@/store/authstore';
+import NetInfo from '@react-native-community/netinfo';
+import { enqueueVerification } from '@/services/upload-queue';
+import { offlineFirstRequest } from '@/services/cached-api';
 
 type ReviewData = SubmissionData & {
   artifactId: string;
+  localPhotoId?: string;
   gpsLat: number;
   gpsLng: number;
   gpsAccuracy: number | null;
@@ -32,6 +36,7 @@ export default function SubmissionReviewScreen() {
   const params = useLocalSearchParams<{
     artifactId: string;
     imageUri: string;
+    localPhotoId?: string;
     gpsLat: string;
     gpsLng: string;
     gpsAccuracy?: string;
@@ -49,12 +54,15 @@ export default function SubmissionReviewScreen() {
   useEffect(() => {
     if (!params.artifactId) return;
 
-    apiRequest<{
+    offlineFirstRequest<{
       id: string;
       name: string;
       humanReadableLocation: string;
       xpReward: number;
-    }>(`/artifacts/${encodeURIComponent(params.artifactId)}`)
+    }>(
+      `/artifacts/${encodeURIComponent(params.artifactId)}`,
+      ['artifact', params.artifactId],
+    )
       .then((data) => {
         if (!data) {
           Alert.alert(
@@ -65,6 +73,7 @@ export default function SubmissionReviewScreen() {
         }
         setFormData({
           artifactId: params.artifactId,
+          localPhotoId: params.localPhotoId,
           primaryImageUri: params.imageUri,
           galleryImages: [],
           privateNote: '',
@@ -121,6 +130,26 @@ export default function SubmissionReviewScreen() {
 
             setSubmitting(true);
             try {
+              const network = await NetInfo.fetch();
+              if (!network.isConnected) {
+                await enqueueVerification({
+                  artifactId: formData.artifactId,
+                  localPhotoId: formData.localPhotoId,
+                  imageUri: formData.primaryImageUri,
+                  galleryUris: formData.galleryImages.slice(0, 6),
+                  gpsLat: formData.gpsLat,
+                  gpsLng: formData.gpsLng,
+                  gpsAccuracy: Math.max(1, Math.min(100, formData.gpsAccuracy ?? 100)),
+                  gpsCapturedAt: formData.gpsCapturedAt,
+                  privateNote: formData.privateNote || null,
+                });
+                Alert.alert(
+                  'Saved locally',
+                  'Your photo is safe on this device and will upload automatically when internet returns.',
+                );
+                return;
+              }
+
               const uploadMedia = async (uri: string, purpose: 'VERIFICATION_SNAP' | 'VERIFICATION_GALLERY') => {
                 const sign = await apiRequest<{
                   cloudName: string;

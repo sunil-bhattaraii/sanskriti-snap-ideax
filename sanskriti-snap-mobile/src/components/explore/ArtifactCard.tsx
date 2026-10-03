@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router'; // ✅ Added router
 import { COLORS } from '../../constants/colors';
 import { getCategoryIcon } from '../../constants/MapIcons';
 import { formatDistance } from '../../utils/location';
+import CachedImage from '@/components/CachedImage';
 
 type ExploreArtifact = {
   id: string;
@@ -47,8 +48,8 @@ export default function ArtifactCard({
     >
       <View style={styles.imageContainer}>
         {artifact.reference_images?.length > 0 ? (
-          <Image
-            source={{ uri: artifact.reference_images[0] }}
+          <CachedImage
+            remoteUri={artifact.reference_images[0]}
             style={styles.image}
           />
         ) : (

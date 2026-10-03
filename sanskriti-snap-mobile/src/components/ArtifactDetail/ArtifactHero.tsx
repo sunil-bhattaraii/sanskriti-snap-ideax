@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Image, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import CachedImage from '@/components/CachedImage';
 
 interface ArtifactHeroProps {
   images: string[];
@@ -12,8 +13,8 @@ export default function ArtifactHero({ images, location }: ArtifactHeroProps) {
   return (
     <View style={styles.heroContainer}>
       {images?.length > 0 ? (
-        <Image
-          source={{ uri: images[0] }}
+        <CachedImage
+          remoteUri={images[0]}
           style={styles.heroImage}
           resizeMode="cover"
         />

@@ -7,7 +7,7 @@ import * as Location from "expo-location";
 import AppHeader from "@/components/AppHeader";
 import FeaturedDiscoveryCard from "@/components/FeaturedDiscoveryCard";
 import { COLORS } from "@/constants/colors";
-import { apiRequest } from "@/services/api";
+import { offlineFirstRequest } from "@/services/cached-api";
 import { useAuthStore } from "@/store/authstore";
 
 type FeaturedArtifact = { id: string; name: string; description: string; xp: number; imageUrl: string; discoveryCount: number };
@@ -33,7 +33,7 @@ export default function HomeScreen() {
           endpoint = `/artifacts/featured?latitude=${location.coords.latitude}&longitude=${location.coords.longitude}&limit=3`;
         }
 
-        const response = await apiRequest<{
+        const response = await offlineFirstRequest<{
           items: Array<{
             id: string;
             name: string;
@@ -42,7 +42,7 @@ export default function HomeScreen() {
             coverImageUrl: string | null;
             discoveryCount: number;
           }>;
-        }>(endpoint);
+        }>(endpoint, ['featured-artifacts', endpoint]);
         artifacts = response.items.map((artifact) => ({
           id: artifact.id,
           name: artifact.name,

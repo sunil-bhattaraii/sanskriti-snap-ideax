@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS } from '@/constants/colors';
+import CachedImage from '@/components/CachedImage';
 
 interface FeaturedDiscoveryCardProps {
   title: string;
@@ -23,7 +24,7 @@ export default function FeaturedDiscoveryCard({
       onPress={onPress}
       activeOpacity={0.9}
     >
-      <Image source={{ uri: imageUrl }} style={styles.image} />
+      <CachedImage remoteUri={imageUrl} style={styles.image} />
       <View style={styles.overlay} />
 
       <View style={styles.content}>

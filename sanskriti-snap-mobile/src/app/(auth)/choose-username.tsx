@@ -136,7 +136,7 @@ export default function ChooseUsernameScreen() {
       await fetchProfile(user!.id);
 
       // Navigate to main app
-      router.replace('/');
+      router.replace('/(tabs)/home');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to update username');
     } finally {
