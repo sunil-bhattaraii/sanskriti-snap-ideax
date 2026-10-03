@@ -328,15 +328,15 @@ Two paths exist; both are **admin-only** (`requireAdmin`).
 
 | Route | Status | Required behaviour |
 | --- | --- | --- |
-| `POST /api/v1/admin/artifacts/{id}/references` | exists (stub) | Image must be signed via `POST /api/v1/media/sign` with purpose `VERIFICATION_GALLERY`. **On the real implementation, the server fetches the image and calls `POST /embed` synchronously, then stores the returned vector on `ArtifactReference` with the stamped model.** Today it creates the row with `embedding: [], embeddingDimension: 0, cvModel {name:"pending", version:"0.0"}` — the **two-step** path. Never writable by a client. Optionally sets `isCover` and clears the previous cover. Writes `adminActions` audit row. |
+| `POST /api/v1/admin/artifacts/{id}/references` | exists | Image must be signed via `POST /api/v1/media/sign` with purpose `VERIFICATION_GALLERY`. When `generateEmbedding: true`, the existing authenticated Next.js handler calls `POST /embed` directly server-to-server and stores the returned vector and stamped model on `ArtifactReference`; no additional proxy endpoint or browser-to-CV call is used. `model` is optional and omitted to use the CV service default. When false or omitted, it creates a pending reference (`embedding: [], embeddingDimension: 0, cvModel {name:"pending", version:"0.0"}`). Never writable by a client. Optionally sets `isCover` and clears the previous cover. |
 | `POST /api/v1/admin/artifacts/{id}/references/embeddings` | exists | Attaches a **pre-computed** vector to an existing reference (Path B, for bulk imports / offline tooling). Body: `imagePublicId`, `embedding`, `embeddingDimension`, `model {name, version}`, optional `isCover`. **Validates `embedding.length === embeddingDimension`** (contract does not trust a claimed dimension). Updates the reference document in place. Clears prior covers if `isCover`. |
 | `DELETE /api/v1/admin/artifacts/{id}/references/{refId}` | exists | Removes the reference; if it was the cover, clears `artifact.coverImageUrl` so the artifact does not point at a deleted asset. Writes `adminActions`. Atomic with the cover-clear in a transaction. |
 
 **Ingestion flow (Path A, image upload):**
 ```
 Admin → upload ref image via /media/sign (purpose VERIFICATION_GALLERY)
-      → POST /admin/artifacts/{id}/references { imagePublicId, isCover }
-      → (real impl: server calls /embed, stores vector)
+      → POST /admin/artifacts/{id}/references { imagePublicId, isCover, generateEmbedding: true, model? }
+      → server calls /embed directly and stores vector
       → artifact is now CV-ready → can be published
 ```
 **Ingestion flow (Path B, embedding only):**

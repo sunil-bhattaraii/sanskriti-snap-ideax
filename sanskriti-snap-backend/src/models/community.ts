@@ -185,6 +185,7 @@ const AdminActionSchema = new Schema(
         "COMMUNITY_CONTENT_REMOVED",
         "USER_SUSPENDED",
         "USER_REACTIVATED",
+        "USER_UPDATED",
         "ADMIN_ADJUSTMENT",
       ],
       required: true,

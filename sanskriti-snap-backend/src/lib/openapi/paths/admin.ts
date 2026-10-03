@@ -33,6 +33,7 @@ import {
   UpdateArtifactRequest,
   UpdateBadgeRequest,
   UpdateQuestRequest,
+  UpdateUserRequest,
   VerificationStatus,
   XpAdjustmentRequest,
 } from "@/lib/contracts";
@@ -106,13 +107,15 @@ export const adminPaths: PathsFragment = {
     post: op({
       tags: [ADMIN],
       summary: "Add a reference image",
-      description: `${REQUIRES_ADMIN} The image must have been signed with purpose VERIFICATION_GALLERY. Optionally sets it as cover.`,
+      description: `${REQUIRES_ADMIN} The image must have been signed with purpose VERIFICATION_GALLERY. Set \`generateEmbedding\` to call the CV service from the server and store its result; \`model\` is optional. Optionally sets it as cover.`,
       params: [objectIdPath("id")],
       body: toOpenApiSchema(CreateReferenceRequest),
       okStatus: 201,
       errors: [
         "NOT_FOUND",
         "VALIDATION_FAILED",
+        "CV_UNAVAILABLE",
+        "CV_TIMEOUT",
         "UNAUTHENTICATED",
         "ACCOUNT_SUSPENDED",
         "FORBIDDEN",
@@ -216,6 +219,18 @@ export const adminPaths: PathsFragment = {
   /* ------------------------------------------------------------- quests */
 
   "/api/v1/admin/quests": {
+    get: op({
+      tags: [ADMIN],
+      summary: "List quests",
+      description: `${REQUIRES_ADMIN} Returns quests in reverse creation order with cursor pagination.`,
+      params: queryParams(PaginationQuery),
+      errors: [
+        "VALIDATION_FAILED",
+        "UNAUTHENTICATED",
+        "ACCOUNT_SUSPENDED",
+        "FORBIDDEN",
+      ],
+    }),
     post: op({
       tags: [ADMIN],
       summary: "Create a quest",
@@ -251,6 +266,18 @@ export const adminPaths: PathsFragment = {
   /* ------------------------------------------------------------- badges */
 
   "/api/v1/admin/badges": {
+    get: op({
+      tags: [ADMIN],
+      summary: "List badges",
+      description: `${REQUIRES_ADMIN} Returns badges in reverse creation order with cursor pagination.`,
+      params: queryParams(PaginationQuery),
+      errors: [
+        "VALIDATION_FAILED",
+        "UNAUTHENTICATED",
+        "ACCOUNT_SUSPENDED",
+        "FORBIDDEN",
+      ],
+    }),
     post: op({
       tags: [ADMIN],
       summary: "Create a badge",
@@ -300,6 +327,23 @@ export const adminPaths: PathsFragment = {
     }),
   },
 
+  "/api/v1/admin/users/{id}": {
+    patch: op({
+      tags: [ADMIN],
+      summary: "Update a user",
+      description: `${REQUIRES_ADMIN} Updates user information.`,
+      params: [objectIdPath("id")],
+      body: toOpenApiSchema(UpdateUserRequest),
+      errors: [
+        "NOT_FOUND",
+        "VALIDATION_FAILED",
+        "UNAUTHENTICATED",
+        "ACCOUNT_SUSPENDED",
+        "FORBIDDEN",
+      ],
+    }),
+  },
+
   "/api/v1/admin/users/{id}/suspend": {
     post: op({
       tags: [ADMIN],
@@ -313,6 +357,21 @@ export const adminPaths: PathsFragment = {
         "FORBIDDEN",
         "UNAUTHENTICATED",
         "ACCOUNT_SUSPENDED",
+      ],
+    }),
+  },
+
+  "/api/v1/admin/users/{id}/reactivate": {
+    post: op({
+      tags: [ADMIN],
+      summary: "Reactivate a suspended user",
+      description: `${REQUIRES_ADMIN} Idempotent by state. A deleted account cannot be reactivated.`,
+      params: [objectIdPath("id")],
+      errors: [
+        "NOT_FOUND",
+        "UNAUTHENTICATED",
+        "ACCOUNT_SUSPENDED",
+        "FORBIDDEN",
       ],
     }),
   },

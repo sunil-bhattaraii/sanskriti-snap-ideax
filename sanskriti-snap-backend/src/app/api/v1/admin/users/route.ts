@@ -20,6 +20,7 @@ import { requireAdmin } from "@/lib/auth";
 import { AdminUserQuery } from "@/lib/contracts";
 import { connect } from "@/lib/db";
 import { toErrorResponse } from "@/lib/errors";
+import { parseQuery } from "@/lib/http";
 import { User } from "@/models/user";
 
 export async function GET(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     await connect();
 
     const url = request.nextUrl;
-    const { limit, cursor, q } = AdminUserQuery.parse({
+    const { limit, cursor, q } = parseQuery(AdminUserQuery, {
       limit: url.searchParams.get("limit") ?? undefined,
       cursor: url.searchParams.get("cursor") ?? undefined,
       q: url.searchParams.get("q") ?? undefined,

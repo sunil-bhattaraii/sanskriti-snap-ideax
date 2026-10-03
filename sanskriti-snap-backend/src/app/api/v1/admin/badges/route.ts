@@ -8,15 +8,62 @@
  * transaction so a deleted quest cannot be set as the unlock condition.
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { Types } from "mongoose";
 
 import { requireAdmin } from "@/lib/auth";
-import { CreateBadgeRequest } from "@/lib/contracts";
+import { CreateBadgeRequest, PaginationQuery } from "@/lib/contracts";
 import { connect, withTransaction } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
-import { readJsonBody } from "@/lib/http";
+import { parseQuery, readJsonBody } from "@/lib/http";
 import { AdminAction } from "@/models/community";
 import { Badge, Quest } from "@/models/gamification";
+
+export async function GET(request: NextRequest) {
+  try {
+    await requireAdmin();
+    await connect();
+
+    const { limit, cursor } = parseQuery(PaginationQuery, {
+      limit: request.nextUrl.searchParams.get("limit") ?? undefined,
+      cursor: request.nextUrl.searchParams.get("cursor") ?? undefined,
+    });
+    const filter = cursor && Types.ObjectId.isValid(cursor)
+      ? { _id: { $lt: new Types.ObjectId(cursor) } }
+      : {};
+    const badges = await Badge.find(filter)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .lean();
+    const hasMore = badges.length > limit;
+    const items = (hasMore ? badges.slice(0, limit) : badges).map((badge) => ({
+      id: String(badge._id),
+      name: badge.name,
+      description: badge.description,
+      iconUrl: badge.iconUrl ?? null,
+      condition: {
+        type: badge.condition.type,
+        value: badge.condition.value ?? null,
+        questId: badge.condition.questId
+          ? String(badge.condition.questId)
+          : null,
+        category: badge.condition.category ?? null,
+      },
+      status: badge.status,
+      createdAt: new Date(badge.createdAt).toISOString(),
+    }));
+
+    return NextResponse.json({
+      items,
+      page: {
+        nextCursor: hasMore ? String(badges[limit - 1]._id) : null,
+        hasMore,
+      },
+    });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
 
 export async function POST(request: Request) {
   try {

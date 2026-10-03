@@ -1534,8 +1534,10 @@ type UpdateArtifactRequest =
 type CreateReferenceRequest = {
   imagePublicId: string;                // previously signed via POST /api/v1/media/sign
   isCover?: boolean;                    // defaults to false
+  generateEmbedding?: boolean;           // when true, server calls CV /embed and stores the vector
+  model?: { name: string; version: string }; // optional; omit to use the CV service default
 };
-// server fetches the image from Cloudinary, computes the embedding, stores ArtifactReference
+// model is only used when generateEmbedding is true; otherwise the reference remains pending.
 
 type CreateEmbeddingRequest = {
   embedding: number[];
@@ -1576,11 +1578,14 @@ contribution cannot be approved into nothing.
 | Method | Path | Body |
 | --- | --- | --- |
 | `POST` | `/api/v1/admin/quests` | `{ name, description, artifactIds: string[], badgeId?: string \| null }` |
-| `PATCH` | `/api/v1/admin/quests/:id` | partial of the above |
+| `GET` | `/api/v1/admin/quests?limit=&cursor=` | — |
+| `PATCH` | `/api/v1/admin/quests/:id` | partial of the above, including `status: "ACTIVE" \| "ARCHIVED"` |
 | `POST` | `/api/v1/admin/badges` | `{ name, description, iconUrl?: string \| null, condition: BadgeCondition }` |
-| `PATCH` | `/api/v1/admin/badges/:id` | partial of the above |
+| `GET` | `/api/v1/admin/badges?limit=&cursor=` | — |
+| `PATCH` | `/api/v1/admin/badges/:id` | partial of the above, including `status: "ACTIVE" \| "DISABLED"` |
 | `GET` | `/api/v1/admin/users?q=&limit=&cursor=` | — |
 | `POST` | `/api/v1/admin/users/:id/suspend` | `{ reason: string, suspendedUntil?: string \| null }` |
+| `POST` | `/api/v1/admin/users/:id/reactivate` | — |
 | `GET` | `/api/v1/admin/community?status=` | — |
 | `POST` | `/api/v1/admin/community/:id/hide` | `{ reason: string }` |
 | `POST` | `/api/v1/admin/xp-adjustments` | `XpAdjustmentRequest` |
@@ -2049,6 +2054,8 @@ users. Not returned by the new contract (§7.6).
 | 4 | CV processing model. | **Synchronous.** No queue, no pending state, no polling. Client re-POSTs the same `Idempotency-Key` on failure. | §6.2, §6.2a |
 | 9 | Artifact status vocabulary. | **`DRAFT | PUBLISHED | ARCHIVED | DISABLED`.** Adopts `Backend TDS.md` §16, keeps `ARCHIVED`. | §11.7 |
 | 12 | Where does `rarity` come from? | **A stored, uploader-set field on `artifacts`.** Not derived from `discoveryCount` or `category`; the client switch is deleted. | §11.5 |
+| 13 | Does an admin user edit write an `AdminAction`? | **Yes — action `USER_UPDATED`.** A user edit mutates identity data, so it needs an audit row written in the same transaction (`DB Schemas.md` 18), joining `USER_SUSPENDED | USER_REACTIVATED` in the `adminActions` action enum. | §9 |
+| 13 | Does an admin user edit write an `AdminAction`? | **Yes — action `USER_UPDATED`.** A user edit mutates identity data, so it needs an audit row written in the same transaction (`DB Schemas.md` 18), joining `USER_SUSPENDED | USER_REACTIVATED` in the `adminActions` action enum. | §9 |
 
 ### Propagation status
 

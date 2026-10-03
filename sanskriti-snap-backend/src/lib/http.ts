@@ -2,6 +2,8 @@
  * Request helpers shared by route handlers.
  */
 
+import { type ZodType } from "zod";
+
 import { ApiError } from "./errors";
 
 /**
@@ -19,4 +21,32 @@ export async function readJsonBody(request: Request): Promise<unknown> {
   } catch {
     throw ApiError.validation("Request body must be valid JSON.");
   }
+}
+
+/**
+ * Parses query-string parameters with a zod schema.
+ *
+ * `schema.parse()` throws a bare `ZodError`, which `toErrorResponse` renders
+ * with its hardcoded body message ("The request body failed validation.") —
+ * wrong on a GET, which has no body. A query failure is its own error: 422 with
+ * the offending params in `details.fields`, so the client can point at the box
+ * that is too long rather than at a body it never sent.
+ */
+export function parseQuery<T>(
+  schema: ZodType<T>,
+  params: Record<string, string | undefined>,
+): T {
+  const parsed = schema.safeParse(params);
+  if (!parsed.success) {
+    // Built from `issues` rather than `flatten().fieldErrors`: on a generic
+    // `ZodType<T>` the flattened shape is not statically known, and `issues`
+    // carries the same information with the path intact.
+    const fields: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".") || "_root";
+      fields[key] ??= issue.message;
+    }
+    throw ApiError.validation("Invalid query parameters.", { fields });
+  }
+  return parsed.data;
 }

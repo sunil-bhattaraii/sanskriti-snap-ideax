@@ -17,6 +17,7 @@ import {
 import { toAdminVerificationAttempt } from "@/lib/dto";
 import { connect } from "@/lib/db";
 import { toErrorResponse } from "@/lib/errors";
+import { parseQuery } from "@/lib/http";
 import { Artifact } from "@/models/artifact";
 import { User } from "@/models/user";
 import { VerificationAttempt } from "@/models/verification";
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     await connect();
 
     const url = request.nextUrl;
-    const parsed = AdminVerificationQuery.parse({
+    const parsed = parseQuery(AdminVerificationQuery, {
       limit: url.searchParams.get("limit") ?? undefined,
       cursor: url.searchParams.get("cursor") ?? undefined,
       status: url.searchParams.get("status") ?? undefined,

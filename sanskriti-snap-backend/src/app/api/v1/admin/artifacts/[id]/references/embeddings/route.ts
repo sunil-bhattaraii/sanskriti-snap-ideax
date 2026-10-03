@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { Types } from "mongoose";
 
 import { requireAdmin } from "@/lib/auth";
+import { imageUrl } from "@/lib/cloudinary";
 import { CreateEmbeddingRequest } from "@/lib/contracts";
 import { connect } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
@@ -53,16 +54,24 @@ export async function POST(request: Request, context: RouteContext) {
 
     const { imagePublicId, embedding, embeddingDimension, model, isCover } = parsed.data;
 
-    // Find the reference by artifact + cloudinaryPublicId
-    const reference = await ArtifactReference.findOne({
+    // Find the reference by artifact + cloudinaryPublicId, or create it
+    let reference = await ArtifactReference.findOne({
       artifactId: artifact._id,
       cloudinaryPublicId: imagePublicId,
     });
 
     if (!reference) {
-      throw ApiError.notFound(
-        "Reference not found. Add the reference image first via POST /references.",
-      );
+      reference = new ArtifactReference({
+        artifactId: artifact._id,
+        imageUrl: imagePublicId.startsWith("http")
+          ? imagePublicId
+          : imageUrl(imagePublicId),
+        cloudinaryPublicId: imagePublicId,
+        isCover: isCover ?? false,
+        embedding: [],
+        embeddingDimension: 0,
+        cvModel: { name: "pending", version: "0.0" },
+      });
     }
 
     // If setting as cover, clear previous covers

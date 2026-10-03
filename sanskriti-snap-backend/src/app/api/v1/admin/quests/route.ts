@@ -12,16 +12,57 @@
  * way to tell that from a quest that is merely hard.
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { Types } from "mongoose";
 
 import { requireAdmin } from "@/lib/auth";
-import { CreateQuestRequest } from "@/lib/contracts";
+import { CreateQuestRequest, PaginationQuery } from "@/lib/contracts";
 import { connect, withTransaction } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
-import { readJsonBody } from "@/lib/http";
+import { parseQuery, readJsonBody } from "@/lib/http";
 import { Artifact } from "@/models/artifact";
 import { AdminAction } from "@/models/community";
 import { Quest } from "@/models/gamification";
+
+export async function GET(request: NextRequest) {
+  try {
+    await requireAdmin();
+    await connect();
+
+    const { limit, cursor } = parseQuery(PaginationQuery, {
+      limit: request.nextUrl.searchParams.get("limit") ?? undefined,
+      cursor: request.nextUrl.searchParams.get("cursor") ?? undefined,
+    });
+    const filter = cursor && Types.ObjectId.isValid(cursor)
+      ? { _id: { $lt: new Types.ObjectId(cursor) } }
+      : {};
+    const quests = await Quest.find(filter)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .lean();
+    const hasMore = quests.length > limit;
+    const items = (hasMore ? quests.slice(0, limit) : quests).map((quest) => ({
+      id: String(quest._id),
+      name: quest.name,
+      description: quest.description,
+      artifactIds: quest.artifactIds.map(String),
+      xpReward: quest.xpReward,
+      badgeId: quest.badgeId ? String(quest.badgeId) : null,
+      status: quest.status,
+      createdAt: new Date(quest.createdAt).toISOString(),
+    }));
+
+    return NextResponse.json({
+      items,
+      page: {
+        nextCursor: hasMore ? String(quests[limit - 1]._id) : null,
+        hasMore,
+      },
+    });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
 
 export async function POST(request: Request) {
   try {

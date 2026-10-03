@@ -302,8 +302,17 @@ export const CreateReferenceRequest = z
   .object({
     imagePublicId: z.string().min(1),
     isCover: z.boolean().optional(),
+    generateEmbedding: z.boolean().optional(),
+    model: z
+      .object({ name: z.string().min(1), version: z.string().min(1) })
+      .strict()
+      .optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => value.generateEmbedding === true || !value.model, {
+    message: "model can only be supplied when generateEmbedding is true.",
+    path: ["model"],
+  });
 
 /**
  * docs/API Contract.md 9 — pre-computed embedding path.
@@ -393,7 +402,9 @@ export type CreateQuestRequest = z.infer<typeof CreateQuestRequest>;
  * server-owned, so every field stays settable; the route rejects an empty
  * patch rather than writing a no-op `adminActions` row.
  */
-export const UpdateQuestRequest = CreateQuestRequest.partial();
+export const UpdateQuestRequest = CreateQuestRequest.partial().extend({
+  status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
+});
 export type UpdateQuestRequest = z.infer<typeof UpdateQuestRequest>;
 
 export const BadgeCondition = z
@@ -415,7 +426,9 @@ export const CreateBadgeRequest = z
   .strict();
 export type CreateBadgeRequest = z.infer<typeof CreateBadgeRequest>;
 
-export const UpdateBadgeRequest = CreateBadgeRequest.partial();
+export const UpdateBadgeRequest = CreateBadgeRequest.partial().extend({
+  status: z.enum(["ACTIVE", "DISABLED"]).optional(),
+});
 export type UpdateBadgeRequest = z.infer<typeof UpdateBadgeRequest>;
 
 export const XpAdjustmentRequest = z
@@ -502,6 +515,14 @@ export type HideCommunitySnapRequest = z.infer<
   typeof HideCommunitySnapRequest
 >;
 
+export const UpdateUserRequest = z
+  .object({
+    displayName: z.string().min(1).max(60).optional(),
+    role: Role.optional(),
+  })
+  .strict();
+export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
+
 /* ------------------------------------------------------------ query params */
 
 export const PaginationQuery = z.object({
@@ -509,6 +530,12 @@ export const PaginationQuery = z.object({
   cursor: z.string().optional(),
 });
 export type PaginationQuery = z.infer<typeof PaginationQuery>;
+
+export const AdminArtifactQuery = PaginationQuery.extend({
+  status: ArtifactStatus.optional(),
+  q: z.string().trim().min(1).max(60).optional(),
+});
+export type AdminArtifactQuery = z.infer<typeof AdminArtifactQuery>;
 
 /**
  * docs/API Contract.md 9 — the admin user table. `q` matches username or
