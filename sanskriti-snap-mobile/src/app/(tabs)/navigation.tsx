@@ -82,6 +82,7 @@ export default function NavigationScreen() {
     lat: number;
     lng: number;
     verification_radius_m: number;
+    story_unlock_radius_m: number;
   } | null>(null);
 
   const [userLocation, setUserLocation] = useState<Coordinate | null>(null);
@@ -89,10 +90,13 @@ export default function NavigationScreen() {
   const [distanceToArtifact, setDistanceToArtifact] = useState<number>(0);
   const [estimatedTime, setEstimatedTime] = useState<number>(0);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [hasArrived, setHasArrived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [routeLoading, setRouteLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [walkedRouteIndex, setWalkedRouteIndex] = useState(0);
+  const lastUnlockCheckAt = useRef(0);
+  const unlockRequestInFlight = useRef(false);
 
   useEffect(() => {
     loadArtifactAndStartNavigation();
@@ -115,13 +119,44 @@ export default function NavigationScreen() {
     }
   }, [artifact]);
 
+  const checkStoryUnlock = async (location: Coordinate, distance: number) => {
+    if (!artifact || distance > artifact.story_unlock_radius_m) return;
+    if (unlockRequestInFlight.current || Date.now() - lastUnlockCheckAt.current < 10_000) return;
+
+    lastUnlockCheckAt.current = Date.now();
+    unlockRequestInFlight.current = true;
+    try {
+      const result = await apiRequest<{ unlocked: boolean; distanceMeters: number }>(
+        `/artifacts/${encodeURIComponent(artifact.id)}/unlock-story`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            location: {
+              latitude: location[1],
+              longitude: location[0],
+              capturedAt: new Date().toISOString(),
+            },
+          }),
+        },
+      );
+      if (result.unlocked) {
+        console.info('Story unlocked while navigating', {
+          artifactId: artifact.id,
+          distanceMeters: result.distanceMeters,
+        });
+      }
+    } finally {
+      unlockRequestInFlight.current = false;
+    }
+  };
+
   useEffect(() => {
     if (routeData && userLocation) {
       const directDistance = artifact
         ? distanceBetweenCoordinates(
-            { latitude: userLocation[1], longitude: userLocation[0] },
-            { latitude: artifact.lat, longitude: artifact.lng },
-          )
+          { latitude: userLocation[1], longitude: userLocation[0] },
+          { latitude: artifact.lat, longitude: artifact.lng },
+        )
         : null;
       setDistanceToArtifact(routeData.distance / 1000);
       // 12 minutes per kilometer
@@ -150,6 +185,19 @@ export default function NavigationScreen() {
     }
   }, [routeData, userLocation, artifact]);
 
+  useEffect(() => {
+    if (!artifact || !userLocation) return;
+    const directDistance = distanceBetweenCoordinates(
+      { latitude: userLocation[1], longitude: userLocation[0] },
+      { latitude: artifact.lat, longitude: artifact.lng },
+    );
+
+    if (directDistance <= artifact.verification_radius_m) handleArrival();
+    void checkStoryUnlock(userLocation, directDistance).catch((error) => {
+      console.warn('Unable to check story unlock while navigating:', error);
+    });
+  }, [userLocation, artifact]);
+
   const loadArtifactAndStartNavigation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -172,6 +220,7 @@ export default function NavigationScreen() {
         latitude: number;
         longitude: number;
         verificationRadiusMeters: number;
+        storyUnlockRadiusMeters: number;
       }>(`/artifacts/${encodeURIComponent(artifactId)}`);
 
       const coords: Coordinate = [
@@ -188,6 +237,7 @@ export default function NavigationScreen() {
         lat: coords[1],
         lng: coords[0],
         verification_radius_m: targetArtifact.verificationRadiusMeters,
+        story_unlock_radius_m: targetArtifact.storyUnlockRadiusMeters,
       });
 
       setTimeout(() => {
@@ -270,7 +320,8 @@ export default function NavigationScreen() {
   };
 
   const handleArrival = () => {
-    if (isNavigating) return;
+    if (hasArrived) return;
+    setHasArrived(true);
     setIsNavigating(true);
     Alert.alert(
       "You've Arrived!",

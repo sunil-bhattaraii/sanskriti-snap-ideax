@@ -84,7 +84,10 @@ export async function prepareProximityNotifications(): Promise<boolean> {
   const notificationPermission = existingNotificationPermission.granted
     ? existingNotificationPermission
     : await Notifications.requestPermissionsAsync();
-  if (!notificationPermission.granted) return false;
+  if (!notificationPermission.granted) {
+    console.warn('Proximity notifications unavailable: notification permission denied');
+    return false;
+  }
 
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("proximity-alerts", {
@@ -96,15 +99,21 @@ export async function prepareProximityNotifications(): Promise<boolean> {
 
   const existingForeground = await Location.getForegroundPermissionsAsync();
   const foreground = existingForeground.granted ? existingForeground : await Location.requestForegroundPermissionsAsync();
-  if (foreground.status !== "granted") return false;
+  if (foreground.status !== "granted") {
+    console.warn('Proximity notifications unavailable: foreground location permission denied');
+    return false;
+  }
 
   const existingBackground = await Location.getBackgroundPermissionsAsync();
   const background = existingBackground.granted ? existingBackground : await Location.requestBackgroundPermissionsAsync();
-  return background.status === "granted";
+  const ready = background.status === "granted";
+  if (!ready) console.warn('Proximity notifications unavailable: background location permission denied');
+  return ready;
 }
 
 export async function refreshProximityGeofences(enabled: boolean, radiusMeters: number): Promise<void> {
   if (!enabled) {
+    console.info('Proximity alerts disabled');
     await stopProximityGeofences();
     return;
   }
@@ -126,6 +135,12 @@ export async function refreshProximityGeofences(enabled: boolean, radiusMeters: 
     )
     .slice(0, MAX_GEOFENCES);
 
+  console.info('Proximity geofences preparing', {
+    radiusMeters,
+    nearbyArtifacts: response.items?.length ?? 0,
+    registeredArtifacts: artifacts.length,
+  });
+
   await AsyncStorage.setItem(
     ARTIFACT_NAMES_KEY,
     JSON.stringify(Object.fromEntries(artifacts.map((artifact) => [artifact.id, artifact.name]))),
@@ -145,6 +160,7 @@ export async function refreshProximityGeofences(enabled: boolean, radiusMeters: 
       notifyOnExit: false,
     })),
   );
+  console.info('Proximity geofences registered', { count: artifacts.length });
 }
 
 export async function stopProximityGeofences(): Promise<void> {

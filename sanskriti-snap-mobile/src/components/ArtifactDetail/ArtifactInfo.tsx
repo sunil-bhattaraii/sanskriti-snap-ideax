@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ArtifactDetail } from "@/types/artifact";
 import { COLORS } from "../../constants/colors";
 import { getRarityInfo } from "../../utils/rarity";
+import MarkdownText from "../MarkdownText";
 
 interface ArtifactInfoProps {
   artifact: ArtifactDetail;
@@ -12,14 +13,14 @@ interface ArtifactInfoProps {
 }
 
 export default function ArtifactInfo({ artifact, distance, isUnlocked }: ArtifactInfoProps) {
-  const rarityInfo = getRarityInfo(artifact.xp_value);
+  const rarityInfo = getRarityInfo(artifact.xpReward);
 
   return (
     <>
       <View style={styles.identitySection}>
         <Text style={styles.artifactName}>{artifact.name}</Text>
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>{artifact.human_readable_location}</Text>
+          <Text style={styles.metaText}>{artifact.humanReadableLocation}</Text>
           <Text style={styles.metaSeparator}>•</Text>
           <Text style={styles.metaText}>{artifact.category}</Text>
         </View>
@@ -33,7 +34,7 @@ export default function ArtifactInfo({ artifact, distance, isUnlocked }: Artifac
 
         <View style={[styles.xpBadge, isUnlocked && styles.xpBadgeClaimed]}>
           <Ionicons name={isUnlocked ? "checkmark-circle" : "trophy"} size={14} color={isUnlocked ? COLORS.primary : "#D4AF37"} />
-          <Text style={[styles.xpText, isUnlocked && styles.xpTextClaimed]}>{isUnlocked ? "Claimed" : `${artifact.xp_value} XP`}</Text>
+          <Text style={[styles.xpText, isUnlocked && styles.xpTextClaimed]}>{isUnlocked ? "Claimed" : `${artifact.xpReward} XP`}</Text>
         </View>
 
         {distance !== null && (
@@ -46,7 +47,7 @@ export default function ArtifactInfo({ artifact, distance, isUnlocked }: Artifac
         )}
       </View>
 
-      <Text style={styles.description}>{artifact.description}</Text>
+      <MarkdownText text={artifact.description} style={styles.description} />
     </>
   );
 }

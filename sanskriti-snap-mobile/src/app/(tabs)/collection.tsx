@@ -7,7 +7,7 @@ import CollectionProgress from '../../components/collection/CollectionProgress';
 import ScreenHeader from '../../components/ScreenHeader';
 import { COLORS } from '../../constants/colors';
 import { useAuthStore } from '@/store/authstore';
-import { fetchCollection, type CollectionItem } from '@/services/progress';
+import { fetchCollection, readCollectionCache, type CollectionItem } from '@/services/progress';
 
 const DISCOVER_TO_UNLOCK_CARDS: CollectionItem[] = [
   {
@@ -15,6 +15,7 @@ const DISCOVER_TO_UNLOCK_CARDS: CollectionItem[] = [
     title: 'Discover to unlock',
     location: '',
     xp: 0,
+    imageUrl: '',
     rarity: 'Common',
     isDiscovered: false,
   },
@@ -30,6 +31,12 @@ export default function CollectionScreen() {
   useEffect(() => {
     let mounted = true;
     queueMicrotask(() => mounted && setLoading(true));
+    void readCollectionCache(user?.id ?? null).then((cached) => {
+      if (cached && mounted) {
+        setCollection(cached);
+        setLoading(false);
+      }
+    });
     fetchCollection(user?.id ?? null)
       .then((items) => {
         if (mounted) setCollection(items);

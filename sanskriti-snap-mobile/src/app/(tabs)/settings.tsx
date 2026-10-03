@@ -7,6 +7,8 @@ import SettingsItem from "../../components/settings/SettingsItem";
 import SettingsSection from "../../components/settings/SettingsSection";
 import { COLORS } from "../../constants/colors";
 import { backendClient } from "../../services/backendClient";
+import { invalidateOfflineCache } from "../../services/offline";
+import { syncOfflineData } from "../../services/offline-sync";
 
 export default function SettingsScreen() {
   const [proximityAlerts, setProximityAlerts] = useState(true);
@@ -14,10 +16,11 @@ export default function SettingsScreen() {
   const profile = useAuthStore((state) => state.profile);
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
   const signOut = useAuthStore((state) => state.signOut);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    setProximityAlerts(profile?.notifications_enabled ?? true);
-  }, [profile?.notifications_enabled]);
+    setProximityAlerts(profile?.notifications.enabled ?? true);
+  }, [profile?.notifications.enabled]);
 
   const handleProximityAlertsChange = async (enabled: boolean) => {
     setProximityAlerts(enabled);
@@ -46,6 +49,23 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  };
+
+  const handleSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      await invalidateOfflineCache();
+      await syncOfflineData(user?.id ?? null);
+      Alert.alert("Sync complete", "Your offline data has been refreshed.");
+    } catch (error) {
+      Alert.alert(
+        "Sync failed",
+        error instanceof Error ? error.message : "Unable to refresh offline data.",
+      );
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (
@@ -119,6 +139,14 @@ export default function SettingsScreen() {
         </SettingsSection>
 
         <SettingsSection title="ABOUT">
+          <SettingsItem
+            icon="sync-outline"
+            title="Sync Data"
+            subtitle="Refresh offline data now"
+            value={syncing ? "Syncing..." : "Sync now"}
+            hasArrow
+            onPress={() => void handleSync()}
+          />
           <SettingsItem icon="information-circle-outline" title="Version" value="1.0.0" />
           <SettingsItem
             icon="help-circle-outline"

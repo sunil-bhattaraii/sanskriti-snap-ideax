@@ -57,6 +57,7 @@ export default function ExploreScreen() {
           cachedDataWasShown = true;
           setUserLocation(cached.userLocation);
           setArtifacts(cached.artifacts);
+          setSelectedArtifact((current) => current ?? cached.artifacts[0] ?? null);
           setLoading(false);
         }
 
@@ -67,6 +68,7 @@ export default function ExploreScreen() {
         if (fresh && isMounted) {
           setUserLocation(fresh.userLocation);
           setArtifacts(fresh.artifacts);
+          setSelectedArtifact((current) => current ?? fresh.artifacts[0] ?? null);
         }
       } catch (error) {
         console.error(error);

@@ -20,7 +20,7 @@ export type NepalSearchArtifact = {
 };
 
 const CACHE_KEY = '@sanskriti_nepal_search_catalog_v1';
-const CACHE_TTL_MS = 30 * 60 * 1000;
+const CACHE_TTL_MS = 60 * 60 * 1000;
 const NEPAL_CENTER = { lat: 28.25, lng: 84.0 };
 const NEPAL_RADIUS_M = 500_000;
 
@@ -90,8 +90,8 @@ function distanceInMeters(
   const a =
     Math.sin(latDelta / 2) ** 2 +
     Math.cos((firstLat * Math.PI) / 180) *
-      Math.cos((secondLat * Math.PI) / 180) *
-      Math.sin(lngDelta / 2) ** 2;
+    Math.cos((secondLat * Math.PI) / 180) *
+    Math.sin(lngDelta / 2) ** 2;
   return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 

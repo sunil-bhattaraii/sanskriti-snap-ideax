@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
 import * as Location from "expo-location";
 import { View, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Share, Alert, TouchableOpacity, Text } from "react-native";
 import { Href, useRouter, useLocalSearchParams } from "expo-router";
 import { apiRequest } from "../../services/api";
+import { getCachedImageUri } from "../../services/image-cache";
 import { COLORS } from "../../constants/colors";
 import { useAuthStore } from "@/store/authstore";
 
@@ -32,6 +35,7 @@ export default function ArtifactDetailScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const artifactCacheKey = `@sanskriti_artifact_${artifactId}`;
 
   useEffect(() => {
     if (artifactId) {
@@ -43,9 +47,26 @@ export default function ArtifactDetailScreen() {
     try {
       setLoading(true);
 
-      const response = await apiRequest<ArtifactDetail>(
-        `/artifacts/${encodeURIComponent(artifactId)}`,
+      const cached = await AsyncStorage.getItem(artifactCacheKey);
+      const network = await NetInfo.fetch();
+      let response: ArtifactDetail;
+      if (!network.isConnected && cached) {
+        response = JSON.parse(cached) as ArtifactDetail;
+      } else try {
+        response = await apiRequest<ArtifactDetail>(
+          `/artifacts/${encodeURIComponent(artifactId)}`,
+        );
+        await AsyncStorage.setItem(artifactCacheKey, JSON.stringify(response));
+      } catch (error) {
+        if (!cached) throw error;
+        response = JSON.parse(cached) as ArtifactDetail;
+      }
+      const imageUrls = [response.coverImageUrl, ...response.referenceImageUrls].filter(
+        (url): url is string => Boolean(url),
       );
+      void Promise.all(imageUrls.map((url) => getCachedImageUri(url))).catch((error) => {
+        console.warn('Unable to prefetch artifact images:', error);
+      });
       const artifactData = {
         ...response,
         reference_images: response.referenceImageUrls ?? [],

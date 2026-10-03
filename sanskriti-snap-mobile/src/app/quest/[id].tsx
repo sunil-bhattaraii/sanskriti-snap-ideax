@@ -86,7 +86,7 @@ export default function QuestDetailScreen() {
           discoveredCount={quest.discoveredCount}
           totalArtifacts={quest.totalArtifacts}
           xpReward={quest.xpReward}
-          badgeName={quest.badgeName}
+          badgeName={quest.badgeName ?? 'No badge'}
         />
 
         {/* 3. Required Discoveries List */}

@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authstore';
 export default function TopHeader() {
   const [searchQuery, setSearchQuery] = useState('');
   const { user, profile } = useAuthStore();
-  const displayName = profile?.display_name ?? user?.email ?? 'Guest User';
+  const displayName = profile?.displayName ?? user?.email ?? 'Guest User';
 
   return (
     <View style={styles.headerContainer}>
@@ -33,7 +33,7 @@ export default function TopHeader() {
       {/* 2. Profile Avatar: Fixed size, stays on the right */}
       <ProfileAvatar
         displayName={displayName}
-        imageUrl={profile?.profile_image_url}
+        imageUrl={profile?.profileImageUrl}
         size={44}
         onPress={() => router.push('/(tabs)/profile')}
       />

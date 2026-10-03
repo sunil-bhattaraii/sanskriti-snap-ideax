@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRequest } from './api';
 
 export type CollectionItem = {
-  id: string; name: string; description: string; category: string;
-  imageUrl: string; discoveredAt: string; xpValue: number;
+  id: string; title: string; location: string; xp: number;
+  imageUrl: string; rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
+  isDiscovered: boolean;
 };
 export type QuestListItem = {
   id: string; name: string; description: string; imageUrl: string;
@@ -20,18 +21,30 @@ export type QuestDetails = QuestListItem & {
 };
 
 const cacheKey = (userId: string | null) => `@sanskriti_quests_${userId ?? 'guest'}`;
+const collectionCacheKey = (userId: string | null) => `@sanskriti_collection_${userId ?? 'guest'}`;
 
-export async function fetchCollection(_userId: string | null) {
-  const response = await apiRequest<{ items: Array<Record<string, unknown>> }>('/collection');
-  return response.items.map((item) => ({
+function mapCollectionItems(items: Array<Record<string, unknown>>): CollectionItem[] {
+  return items.map((item) => ({
     id: String(item.id),
-    name: String(item.name ?? ''),
-    description: String(item.description ?? ''),
-    category: String(item.category ?? ''),
+    title: String(item.name ?? ''),
+    location: String(item.humanReadableLocation ?? ''),
+    xp: Number(item.xpReward ?? 0),
     imageUrl: String(item.coverImageUrl ?? ''),
-    discoveredAt: String(item.discoveredAt ?? ''),
-    xpValue: Number(item.xpReward ?? 0),
+    rarity: (item.rarity as CollectionItem['rarity']) ?? 'Common',
+    isDiscovered: true,
   }));
+}
+
+export async function fetchCollection(userId: string | null) {
+  const response = await apiRequest<{ items: Array<Record<string, unknown>> }>('/collection');
+  const items = mapCollectionItems(response.items);
+  await AsyncStorage.setItem(collectionCacheKey(userId), JSON.stringify(items));
+  return items;
+}
+
+export async function readCollectionCache(userId: string | null): Promise<CollectionItem[] | null> {
+  const cached = await AsyncStorage.getItem(collectionCacheKey(userId));
+  return cached ? (JSON.parse(cached) as CollectionItem[]) : null;
 }
 
 export async function fetchQuests(userId: string | null) {
@@ -87,15 +100,15 @@ export function fetchQuestDetails(questId: string, _userId: string | null) {
       : undefined,
     artifacts: Array.isArray(item.artifacts)
       ? item.artifacts.map((artifact) => {
-          const value = artifact as Record<string, unknown>;
-          return {
-            id: String(value.id),
-            name: String(value.name ?? ''),
-            location: String(value.humanReadableLocation ?? ''),
-            imageUrl: String(value.coverImageUrl ?? ''),
-            isDiscovered: Boolean(value.discovered),
-          };
-        })
+        const value = artifact as Record<string, unknown>;
+        return {
+          id: String(value.id),
+          name: String(value.name ?? ''),
+          location: String(value.humanReadableLocation ?? ''),
+          imageUrl: String(value.coverImageUrl ?? ''),
+          isDiscovered: Boolean(value.discovered),
+        };
+      })
       : [],
   }));
 }

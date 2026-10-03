@@ -23,7 +23,7 @@ export type ExploreCache = {
 };
 
 const CACHE_KEY = '@sanskriti_explore_cache_v1';
-export const EXPLORE_CACHE_TTL_MS = 15 * 60 * 1000;
+export const EXPLORE_CACHE_TTL_MS = 60 * 60 * 1000;
 let warmupPromise: Promise<ExploreCache | null> | null = null;
 
 export async function readExploreCache(): Promise<ExploreCache | null> {
