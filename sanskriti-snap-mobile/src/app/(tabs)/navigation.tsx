@@ -154,9 +154,9 @@ export default function NavigationScreen() {
     if (routeData && userLocation) {
       const directDistance = artifact
         ? distanceBetweenCoordinates(
-            { latitude: userLocation[1], longitude: userLocation[0] },
-            { latitude: artifact.lat, longitude: artifact.lng },
-          )
+          { latitude: userLocation[1], longitude: userLocation[0] },
+          { latitude: artifact.lat, longitude: artifact.lng },
+        )
         : null;
       setDistanceToArtifact(routeData.distance / 1000);
       // 12 minutes per kilometer
