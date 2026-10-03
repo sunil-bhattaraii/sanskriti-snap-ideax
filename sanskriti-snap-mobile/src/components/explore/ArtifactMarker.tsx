@@ -1,6 +1,5 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Image, View, StyleSheet } from 'react-native';
 import { ViewAnnotation } from '@maplibre/maplibre-react-native';
 import { getCategoryIcon } from '../../constants/MapIcons';
 
@@ -21,36 +20,43 @@ export default function ArtifactMarker({
   isSelected,
   onSelect,
 }: ArtifactMarkerProps) {
+  const categoryIcon = getCategoryIcon(category);
+  const [iconLoaded, setIconLoaded] = useState(false);
+
   return (
     // ✅ FIX 1: Append isSelected to the key.
     // This forces React to completely destroy and recreate the marker
     // when selection changes, bypassing MapLibre's caching bug.
     <ViewAnnotation
-      key={`${id}-${isSelected}`}
+      key={`${id}-${isSelected}-${iconLoaded}`}
       id={id}
       lngLat={coordinate}
       onSelect={onSelect}
     >
       {isSelected ? (
         // Keep the selected marker category-specific while making it prominent.
-        <View style={styles.selectedContainer}>
-          <View style={styles.selectedIconWrapper}>
-            <Ionicons
-              name={getCategoryIcon(category)}
-              size={28}
-              color="#FFFFFF"
+        <View collapsable={false} style={styles.selectedContainer}>
+          <View collapsable={false} style={styles.selectedIconWrapper}>
+            <Image
+              source={categoryIcon}
+              style={styles.selectedIcon}
+              resizeMode="contain"
+              fadeDuration={0}
+              onLoad={() => setIconLoaded(true)}
             />
           </View>
           <View style={styles.selectedPointer} />
         </View>
       ) : (
         // ✅ DEFAULT STATE: Category icon with pointer
-        <View style={styles.container}>
-          <View style={styles.iconWrapper}>
-            <Ionicons
-              name={getCategoryIcon(category)}
-              size={16}
-              color="#FFFFFF"
+        <View collapsable={false} style={styles.container}>
+          <View collapsable={false} style={styles.iconWrapper}>
+            <Image
+              source={categoryIcon}
+              style={styles.icon}
+              resizeMode="contain"
+              fadeDuration={0}
+              onLoad={() => setIconLoaded(true)}
             />
           </View>
           <View style={styles.pointer} />
@@ -61,7 +67,11 @@ export default function ArtifactMarker({
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center' },
+  container: {
+    alignItems: 'center',
+    width: 36,
+    height: 44,
+  },
   iconWrapper: {
     width: 32,
     height: 32,
@@ -71,11 +81,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
+  },
+  icon: {
+    width: 20,
+    height: 20,
   },
   pointer: {
     width: 0,
@@ -90,13 +99,8 @@ const styles = StyleSheet.create({
   },
   selectedContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'visible',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    width: 56,
+    height: 68,
   },
   selectedIconWrapper: {
     width: 52,
@@ -107,6 +111,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#FFFFFF',
+  },
+  selectedIcon: {
+    width: 34,
+    height: 34,
   },
   selectedPointer: {
     width: 0,
