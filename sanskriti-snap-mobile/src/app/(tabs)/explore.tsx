@@ -172,7 +172,6 @@ export default function ExploreScreen() {
 
       <AppHeader
         overlay
-        overlayTop={30}
         centerContent={
           <SearchBar
             embedded

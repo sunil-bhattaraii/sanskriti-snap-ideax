@@ -14,6 +14,14 @@ export interface BadgesData {
   badges: Badge[];
 }
 
+type BackendBadge = {
+  id: string;
+  name: string;
+  description: string;
+  iconUrl: string | null;
+  unlocked: boolean;
+};
+
 export async function getBadges(_userId?: string): Promise<BadgesData> {
   try {
     const result = await apiRequest<{
@@ -26,12 +34,11 @@ export async function getBadges(_userId?: string): Promise<BadgesData> {
       }>;
     } | { badges?: Badge[] } | Badge[]>('/badges');
 
-    const items = Array.isArray(result)
+    const objectResult = result as { items?: BackendBadge[]; badges?: Badge[] };
+    const items: Array<BackendBadge | Badge> = Array.isArray(result)
       ? result
-      : 'items' in result
-        ? result.items ?? []
-        : result.badges ?? [];
-    const badges: Badge[] = items.map((badge) => ({
+      : objectResult.items ?? objectResult.badges ?? [];
+    const badges: Badge[] = items.map((badge: BackendBadge | Badge) => ({
       id: badge.id,
       title: 'name' in badge ? badge.name : badge.title,
       description: badge.description,

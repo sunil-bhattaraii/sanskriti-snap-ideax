@@ -14,24 +14,3 @@ export const storage = {
   },
 };
 
-export async function uploadLocalFile(
-  bucket: string,
-  localUri: string,
-  objectPath: string,
-): Promise<string> {
-  const response = await fetch(localUri);
-  if (!response.ok) {
-    throw new Error(`Unable to read captured file (${response.status}).`);
-  }
-
-  const blob = await response.blob();
-  const { error } = await (await import('./backendClient')).backendClient.storage
-    .from(bucket)
-    .upload(objectPath, blob, {
-      contentType: blob.type || 'image/jpeg',
-      upsert: false,
-    });
-
-  if (error) throw error;
-  return objectPath;
-}

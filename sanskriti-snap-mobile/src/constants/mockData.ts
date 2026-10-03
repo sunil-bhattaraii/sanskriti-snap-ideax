@@ -1,6 +1,4 @@
-import type { ArtifactDetail } from '../types/artifact';
-
-export const MOCK_ARTIFACTS: (ArtifactDetail & { lat: number; lng: number; distance: number })[] = [
+export const MOCK_ARTIFACTS = [
   {
     id: 'patan-durbar-square',
     name: 'Patan Durbar Square',
@@ -16,7 +14,6 @@ The square is an open-air museum displaying traditional Newari craftsmanship wit
 # Cultural Significance
 It remains an active spiritual and community hub where centuries-old festivals such as Rato Machhindranath Jatra and Krishna Janmashtami are celebrated with deep devotion.`,
     tags: ['UNESCO', 'Malla Dynasty', 'Palace', 'Newari Heritage'],
-    location: { latitude: 27.6727, longitude: 85.3253 },
     lat: 27.6727,
     lng: 85.3253,
     human_readable_location: 'Lalitpur, Kathmandu Valley',
@@ -29,7 +26,7 @@ It remains an active spiritual and community hub where centuries-old festivals s
     distance: 0.2,
     requires_snap: true,
     requires_cv: false,
-    warnings: [],
+    warnings: null,
   },
   {
     id: 'krishna-mandir',
@@ -46,7 +43,6 @@ Unlike most pagoda temples in Nepal, Krishna Mandir is built entirely of stone. 
 # Cultural Significance
 Every year during Krishna Janmashtami, thousands of pilgrims from across Nepal and India gather here to chant hymns and celebrate the birth of Lord Krishna.`,
     tags: ['Stone Architecture', 'Shikhara', 'Mahabharata', 'Krishna'],
-    location: { latitude: 27.6732, longitude: 85.3258 },
     lat: 27.6732,
     lng: 85.3258,
     human_readable_location: 'Patan Durbar Square, Lalitpur',
@@ -59,7 +55,7 @@ Every year during Krishna Janmashtami, thousands of pilgrims from across Nepal a
     distance: 0.3,
     requires_snap: true,
     requires_cv: false,
-    warnings: [],
+    warnings: null,
   },
   {
     id: 'golden-temple',
@@ -76,7 +72,6 @@ The monastery's exterior is embellished in glistening gilded copper plates, sacr
 # Living Buddhist Philosophy
 Hiranya Varna Mahavihar remains one of the most vibrant centers of Newari Vajrayana Buddhism, preserving ancient Sanskrit manuscripts and devotional rituals.`,
     tags: ['Buddhist Monastery', 'Gilded Copper', 'Vajrayana', 'Newar Art'],
-    location: { latitude: 27.6755, longitude: 85.3241 },
     lat: 27.6755,
     lng: 85.3241,
     human_readable_location: 'Kwalakhu Road, Lalitpur',
@@ -89,7 +84,7 @@ Hiranya Varna Mahavihar remains one of the most vibrant centers of Newari Vajray
     distance: 0.5,
     requires_snap: true,
     requires_cv: false,
-    warnings: [],
+    warnings: null,
   },
   {
     id: 'mahabouddha-temple',
@@ -106,7 +101,6 @@ Every single terracotta brick used to build the spire is embossed with a delicat
 # Resilience and Heritage
 Destroyed during the devastating 1934 earthquake, the temple was lovingly reconstructed brick by brick using the original terracotta tiles recovered by the community.`,
     tags: ['Terracotta', 'Bodh Gaya Style', 'Shakya Heritage'],
-    location: { latitude: 27.6711, longitude: 85.3285 },
     lat: 27.6711,
     lng: 85.3285,
     human_readable_location: 'Okubahal, Lalitpur',
@@ -119,7 +113,7 @@ Destroyed during the devastating 1934 earthquake, the temple was lovingly recons
     distance: 0.7,
     requires_snap: true,
     requires_cv: false,
-    warnings: [],
+    warnings: null,
   },
   {
     id: 'kumbheshwar-temple',
@@ -136,7 +130,6 @@ Standing tall above the narrow alleys of northern Patan, its towering wooden bra
 # Janai Purnima Celebrations
 During the sacred festival of Janai Purnima, thousands of devotees take holy dips in the temple pond to honor Lord Shiva.`,
     tags: ['Five Tier Pagoda', 'Lord Shiva', 'Gosaikunda Spring'],
-    location: { latitude: 27.6778, longitude: 85.3262 },
     lat: 27.6778,
     lng: 85.3262,
     human_readable_location: 'Kumbheshwar, Lalitpur',
@@ -149,7 +142,7 @@ During the sacred festival of Janai Purnima, thousands of devotees take holy dip
     distance: 0.9,
     requires_snap: true,
     requires_cv: false,
-    warnings: [],
+    warnings: null,
   },
 ];
 
