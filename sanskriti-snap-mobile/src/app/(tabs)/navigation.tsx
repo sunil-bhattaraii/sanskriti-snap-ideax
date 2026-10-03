@@ -23,6 +23,7 @@ import { COLORS } from '@/constants/colors';
 import ArtifactMarker from '@/components/explore/ArtifactMarker';
 import MapControls from '@/components/explore/MapControls';
 import UserLocationMarker from '@/components/explore/UserLocationMarker';
+import { distanceBetweenCoordinates } from '@/utils/geo';
 import Svg, { Circle } from 'react-native-svg';
 
 type Coordinate = [number, number];
@@ -116,6 +117,12 @@ export default function NavigationScreen() {
 
   useEffect(() => {
     if (routeData && userLocation) {
+      const directDistance = artifact
+        ? distanceBetweenCoordinates(
+            { latitude: userLocation[1], longitude: userLocation[0] },
+            { latitude: artifact.lat, longitude: artifact.lng },
+          )
+        : null;
       setDistanceToArtifact(routeData.distance / 1000);
       // 12 minutes per kilometer
       setEstimatedTime(Math.ceil((routeData.distance / 1000) * 12));
@@ -132,7 +139,12 @@ export default function NavigationScreen() {
           : 0
       );
 
-      if (routeData.distance <= (artifact?.verification_radius_m || 50)) {
+      // The route distance is intentionally used for navigation display and
+      // progress. Arrival/verification uses the direct geodesic distance.
+      if (
+        directDistance !== null &&
+        directDistance <= (artifact?.verification_radius_m || 50)
+      ) {
         handleArrival();
       }
     }
