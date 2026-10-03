@@ -4,18 +4,18 @@ import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 export default function OAuthNativeCallback() {
-  const router = useRouter();
-  const { isLoaded, isSignedIn } = useAuth();
+    const router = useRouter();
+    const { isLoaded, isSignedIn } = useAuth();
 
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      router.replace('/(tabs)');
-    }
-  }, [isLoaded, isSignedIn, router]);
+    useEffect(() => {
+        if (isLoaded && isSignedIn) {
+            router.replace('/(tabs)');
+        }
+    }, [isLoaded, isSignedIn, router]);
 
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <ActivityIndicator />
-    </View>
-  );
+    return (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator />
+        </View>
+    );
 }
