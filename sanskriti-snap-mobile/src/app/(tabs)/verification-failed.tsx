@@ -15,7 +15,7 @@ import VerificationAlert from "../../components/verification/VerificationAlert";
 import { COLORS } from "../../constants/colors";
 
 import type { VerificationFailedData } from "../../constants/data/mockVerificationFailed";
-import { backendClient } from "@/services/backendClient";
+import { apiRequest } from "@/services/api";
 
 export default function VerificationFailedScreen() {
   const router = useRouter();
@@ -24,13 +24,19 @@ export default function VerificationFailedScreen() {
 
   useEffect(() => {
     if (!artifactId) return;
-    backendClient.from("artifacts").select("name, reference_images").eq("id", artifactId).single()
-      .then(({ data }) => data && setFailedData({
+    apiRequest<{
+      name: string;
+      coverImageUrl: string | null;
+    }>(`/artifacts/${encodeURIComponent(artifactId)}`)
+      .then((data) => setFailedData({
         distanceRemaining: Number(distanceRemaining ?? 0),
         artifactName: data.name,
-        mapImageUrl: data.reference_images[0] ?? "",
+        mapImageUrl: data.coverImageUrl ?? "",
         instructionText: `Move closer to ${data.name} to verify your discovery.`,
-      }));
+      }))
+      .catch((error) => {
+        console.error("Unable to load failed verification details:", error);
+      });
   }, [artifactId, distanceRemaining]);
 
   if (!failedData) return <View style={styles.container}><Text style={styles.footerText}>Loading verification...</Text></View>;
