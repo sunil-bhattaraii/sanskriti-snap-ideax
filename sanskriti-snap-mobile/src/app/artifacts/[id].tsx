@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Share, Alert, TouchableOpacity, Text } from "react-native";
 import { Href, useRouter, useLocalSearchParams } from "expo-router";
 import { backendClient } from "../../services/backendClient";
+import { apiRequest } from "../../services/api";
 import { COLORS } from "../../constants/colors";
 import { useAuthStore } from "@/store/authstore";
 
@@ -42,32 +43,17 @@ export default function ArtifactDetailScreen() {
     try {
       setLoading(true);
 
-      const { data: artifactData, error: artifactError } = await backendClient
-        .from("artifacts")
-        .select(
-          "id,name,description,story,category,tags,location,human_readable_location,verification_radius_m,story_unlock_radius_m,xp_value,reference_images,requires_snap,requires_cv,warnings",
-        )
-        .eq("id", artifactId)
-        .single();
-
-      if (artifactError) throw artifactError;
+      const artifactData = await apiRequest<ArtifactDetail>(
+        `/artifacts/${encodeURIComponent(artifactId)}`,
+      );
       setArtifact(artifactData as ArtifactDetail);
 
       if (user) {
-        const [{ data: discoveryData }, { data: storyUnlockData }] = await Promise.all([
-          backendClient.from("discoveries").select("id").eq("user_id", user.id).eq("artifact_id", artifactId).maybeSingle(),
-          backendClient.from("story_unlocks").select("user_id").eq("user_id", user.id).eq("artifact_id", artifactId).maybeSingle(),
-        ]);
-
-        let distance = null;
-        // Note: If you need to access artifactData.location, TypeScript might
-        // complain it's 'unknown'. You can safely cast it:
-        // const location = artifactData?.location as any;
-        if (profile && artifactData?.location) {
-          // Distance calculation logic remains here
-        }
-
-        setDiscoveryStatus({ isDiscovered: !!discoveryData, isStoryUnlocked: !!storyUnlockData, distanceToArtifact: distance });
+        setDiscoveryStatus({
+          isDiscovered: artifactData.discovered,
+          isStoryUnlocked: artifactData.storyUnlocked,
+          distanceToArtifact: artifactData.distanceMeters ?? null,
+        });
       }
     } catch (error) {
       console.error("Error loading artifact:", error);

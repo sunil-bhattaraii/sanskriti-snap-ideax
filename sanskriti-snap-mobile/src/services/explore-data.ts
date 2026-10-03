@@ -58,17 +58,19 @@ async function fetchExploreData(): Promise<ExploreCache | null> {
     location.coords.latitude,
   ];
 
-  const data = await apiRequest<{ artifacts: Array<Record<string, unknown>> }>(
+  const data = await apiRequest<{
+    items: Array<Record<string, unknown>>;
+  }>(
     `/artifacts/nearby?latitude=${userLocation[1]}&longitude=${userLocation[0]}&radiusMeters=5000`,
   );
 
-  const artifacts: CachedExploreArtifact[] = (data.artifacts || [])
+  const artifacts: CachedExploreArtifact[] = (data.items || [])
     .map((item) => ({
       id: String(item.id),
       name: String(item.name),
       description: String(item.description ?? ''),
       category: String(item.category ?? ''),
-      reference_images: (item.referenceImageUrls as string[]) ?? [],
+      reference_images: item.coverImageUrl ? [String(item.coverImageUrl)] : [],
       xp_value: Number(item.xpReward ?? 0),
       lat: Number(item.latitude),
       lng: Number(item.longitude),

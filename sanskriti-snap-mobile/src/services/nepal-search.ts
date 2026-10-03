@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { backendClient } from './backendClient';
+import { apiRequest } from './api';
 
 export type NepalSearchArtifact = {
   id: string;
@@ -55,54 +55,27 @@ function normalizeArtifact(item: any): NepalSearchArtifact | null {
   };
 }
 
-async function loadCatalog() {
-  try {
-    const stored = await AsyncStorage.getItem(CACHE_KEY);
-    if (stored) {
-      const cached = JSON.parse(stored) as { savedAt: number; artifacts: NepalSearchArtifact[] };
-      if (Date.now() - cached.savedAt < CACHE_TTL_MS && cached.artifacts.length) {
-        return cached.artifacts;
-      }
-    }
-  } catch (error) {
-    console.warn('Unable to read Nepal search cache:', error);
-  }
-
-  const { data, error } = await backendClient.rpc('nearby_artifacts', {
-    p_lat: NEPAL_CENTER.lat,
-    p_lng: NEPAL_CENTER.lng,
-    p_radius_m: NEPAL_RADIUS_M,
-  });
-  if (error) throw error;
-
-  const artifacts = (data ?? [])
-    .map(normalizeArtifact)
-    .filter((artifact): artifact is NepalSearchArtifact => artifact !== null);
-
-  await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), artifacts }));
-  return artifacts;
-}
-
-export function getNepalSearchCatalog() {
-  if (!catalogPromise) {
-    catalogPromise = loadCatalog().finally(() => {
-      catalogPromise = null;
-    });
-  }
-  return catalogPromise;
-}
-
 export async function searchNepalArtifacts(query: string) {
   const normalizedQuery = query.trim().toLocaleLowerCase();
   if (!normalizedQuery) return [];
 
-  const catalog = await getNepalSearchCatalog();
-  return catalog
-    .filter((artifact) =>
-      [artifact.name, artifact.description, artifact.category, artifact.human_readable_location, ...artifact.tags]
-        .some((value) => value.toLocaleLowerCase().includes(normalizedQuery))
+  const response = await apiRequest<{ items: Array<Record<string, unknown>> }>(
+    `/artifacts/search?q=${encodeURIComponent(normalizedQuery)}&limit=8`,
+  );
+
+  return response.items
+    .map((item) =>
+      normalizeArtifact({
+        ...item,
+        lat: item.latitude,
+        lng: item.longitude,
+        reference_images: item.coverImageUrl ? [item.coverImageUrl] : [],
+        human_readable_location: item.humanReadableLocation,
+        xp_value: item.xpReward,
+        discovery_count: item.discoveryCount,
+      }),
     )
-    .slice(0, 8);
+    .filter((artifact): artifact is NepalSearchArtifact => artifact !== null);
 }
 
 function distanceInMeters(

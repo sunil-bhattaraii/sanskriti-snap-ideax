@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS } from '../../constants/colors';
 import ExploreMapView, {
   MapViewHandle,
@@ -34,6 +34,7 @@ export default function ExploreScreen() {
     lng?: string;
     focus?: string;
   }>();
+  const router = useRouter();
   const [userLocation, setUserLocation] = useState<Coordinate | null>(null);
   const [artifacts, setArtifacts] = useState<ExploreArtifact[]>([]);
   const [selectedArtifact, setSelectedArtifact] =
@@ -130,7 +131,7 @@ export default function ExploreScreen() {
   // ✅ Handle Search Selection
   const handleSearchSelect = (result: SearchResult) => {
     if (result.type === 'artifact') {
-      setSelectedArtifact(result.data);
+      router.push(`/artifacts/${encodeURIComponent(result.data.id)}`);
     } else if (result.type === 'location') {
       // Fly to the location coordinates
       mapViewRef.current?.flyTo(result.data, 16);
