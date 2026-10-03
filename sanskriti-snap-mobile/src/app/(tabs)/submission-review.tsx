@@ -17,6 +17,7 @@ import SubmissionPreview from '../../components/submission/SubmissionPreview';
 import VerificationNotice from '../../components/submission/VerificationNotice';
 import type { SubmissionData } from '../../constants/data/mockSubmission';
 import { backendClient } from '@/services/backendClient';
+import { apiRequest } from '@/services/api';
 import { useAuthStore } from '@/store/authstore';
 
 type ReviewData = SubmissionData & {
@@ -49,16 +50,17 @@ export default function SubmissionReviewScreen() {
   useEffect(() => {
     if (!params.artifactId) return;
 
-    backendClient
-      .from('artifacts')
-      .select('name, human_readable_location, xp_value')
-      .eq('id', params.artifactId)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
+    apiRequest<{
+      id: string;
+      name: string;
+      humanReadableLocation: string;
+      xpReward: number;
+    }>(`/artifacts/${encodeURIComponent(params.artifactId)}`)
+      .then((data) => {
+        if (!data) {
           Alert.alert(
             'Unable to load artifact',
-            error?.message ?? 'Artifact not found'
+            'Artifact not found'
           );
           return;
         }
@@ -68,14 +70,20 @@ export default function SubmissionReviewScreen() {
           galleryImages: [],
           privateNote: '',
           isPublic: false,
-          xpReward: data.xp_value,
+          xpReward: data.xpReward,
           placeName: data.name,
-          location: data.human_readable_location,
+          location: data.humanReadableLocation,
           gpsLat: Number(params.gpsLat),
           gpsLng: Number(params.gpsLng),
           gpsAccuracy: params.gpsAccuracy ? Number(params.gpsAccuracy) : null,
           gpsCapturedAt: params.gpsCapturedAt,
         });
+      })
+      .catch((error) => {
+        Alert.alert(
+          'Unable to load artifact',
+          error instanceof Error ? error.message : 'Artifact not found'
+        );
       })
       .then(() => setLoading(false));
   }, [
