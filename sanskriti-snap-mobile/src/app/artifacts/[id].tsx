@@ -243,7 +243,7 @@ export default function ArtifactDetailScreen() {
       </ScrollView>
 
       <ArtifactBottomBar
-        storyUnlocked={discoveryStatus.isDiscovered}
+        storyUnlocked={discoveryStatus.isStoryUnlocked}
         isDiscovered={discoveryStatus.isDiscovered}
         onNavigate={handleStartNavigation}
         onTakeSnap={discoveryStatus.isStoryUnlocked ? handleTakeSnap : undefined}

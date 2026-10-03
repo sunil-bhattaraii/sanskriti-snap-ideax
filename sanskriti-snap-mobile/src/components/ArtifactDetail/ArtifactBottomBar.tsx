@@ -15,7 +15,7 @@ export default function ArtifactBottomBar({ storyUnlocked, isDiscovered = false,
   const insets = useSafeAreaInsets();
 
   // If already discovered, only show the navigation/map button
-  const showSnapButton = !isDiscovered && !!onTakeSnap;
+  const showSnapButton = storyUnlocked && !isDiscovered && !!onTakeSnap;
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 16 }]}>
