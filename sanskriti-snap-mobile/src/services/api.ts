@@ -12,12 +12,7 @@ export class ApiRequestError extends Error {
   status: number;
   details?: unknown;
 
-  constructor(
-    message: string,
-    status: number,
-    code: string,
-    details?: unknown,
-  ) {
+  constructor(message: string, status: number, code: string, details?: unknown) {
     super(message);
     this.name = 'ApiRequestError';
     this.status = status;
@@ -26,30 +21,19 @@ export class ApiRequestError extends Error {
   }
 }
 
-export async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
+export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!apiUrl) {
-    throw new Error(
-      'EXPO_PUBLIC_API_URL is not configured. Set it to the backend origin.',
-    );
+    throw new Error('EXPO_PUBLIC_API_URL is not configured. Set it to the backend origin.');
   }
 
   const token = await tokenProvider();
   const headers = new Headers(options.headers);
   headers.set('Accept', 'application/json');
-  if (options.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
+  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(`${apiUrl}/api/v1${path}`, {
-    ...options,
-    headers,
-  });
+  const response = await fetch(`${apiUrl}/api/v1${path}`, { ...options, headers });
   const payload = await response.json().catch(() => null);
-
   if (!response.ok) {
     const error = payload?.error;
     throw new ApiRequestError(
@@ -59,7 +43,6 @@ export async function apiRequest<T>(
       error?.details,
     );
   }
-
   return payload as T;
 }
 
@@ -69,4 +52,13 @@ export function createIdempotencyKey() {
     const value = character === 'x' ? random : (random & 0x3) | 0x8;
     return value.toString(16);
   });
+}
+
+export async function apiRequestWithIdempotency<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(options.headers);
+  headers.set('Idempotency-Key', createIdempotencyKey());
+  return apiRequest<T>(path, { ...options, headers });
 }

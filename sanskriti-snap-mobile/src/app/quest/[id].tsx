@@ -77,7 +77,7 @@ export default function QuestDetailScreen() {
           name={quest.name}
           description={quest.description}
           category={quest.category}
-          heroImageUrl={quest.heroImageUrl}
+          heroImageUrl={quest.heroImageUrl ?? ''}
           onStartPress={handleStartExploring}
         />
 

@@ -1,18 +1,31 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRequest } from './api';
-import type { LeaderboardUser } from '@/types/leaderboard';
-import { normalizeLeaderboardRow } from '@/types/leaderboard';
+import { getLevelFromXp, type LeaderboardUser } from '@/types/leaderboard';
 
 const CACHE_KEY = '@sanskriti_leaderboard_v1';
 const CACHE_TTL_MS = 15 * 60 * 1000;
 let warmupPromise: Promise<LeaderboardUser[]> | null = null;
 
 async function fetchLeaderboard(): Promise<LeaderboardUser[]> {
-  const data = await apiRequest<LeaderboardUser[] | { entries: LeaderboardUser[] }>('/leaderboard');
-  const rows = Array.isArray(data) ? data : data.entries;
-  return rows
-    .map(normalizeLeaderboardRow)
-    .filter((entry): entry is LeaderboardUser => entry !== null);
+  const data = await apiRequest<{
+    items: Array<{
+      userId: string;
+      username: string;
+      displayName: string;
+      profileImageUrl: string | null;
+      lifetimeXp: number;
+      rank: number;
+    }>;
+  }>('/leaderboard');
+  return data.items.map((row) => ({
+    id: row.userId,
+    username: row.username,
+    display_name: row.displayName,
+    profile_image_url: row.profileImageUrl,
+    lifetime_xp: row.lifetimeXp,
+    rank: row.rank,
+    level: getLevelFromXp(row.lifetimeXp),
+  }));
 }
 
 export async function readLeaderboardCache(): Promise<LeaderboardUser[] | null> {

@@ -100,12 +100,19 @@ export async function getNearbyNepalArtifacts(
   lng: number,
   radiusMeters = 5000
 ) {
-  const catalog = await getNepalSearchCatalog();
-  return catalog
-    .map((artifact) => ({
-      ...artifact,
-      distance_m: distanceInMeters(lat, lng, artifact.lat, artifact.lng),
+  const response = await apiRequest<{ items: Array<Record<string, unknown>> }>(
+    `/artifacts/nearby?latitude=${lat}&longitude=${lng}&radiusMeters=${radiusMeters}`,
+  );
+  return response.items
+    .map((item) => normalizeArtifact({
+      ...item,
+      lat: item.latitude,
+      lng: item.longitude,
+      reference_images: item.coverImageUrl ? [item.coverImageUrl] : [],
+      human_readable_location: item.humanReadableLocation,
+      xp_value: item.xpReward,
+      discovery_count: item.discoveryCount,
+      distance_m: item.distanceMeters,
     }))
-    .filter((artifact) => artifact.distance_m <= radiusMeters)
-    .sort((first, second) => first.distance_m - second.distance_m);
+    .filter((artifact): artifact is NepalSearchArtifact => artifact !== null);
 }

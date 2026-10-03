@@ -7,7 +7,7 @@ import { COLORS } from "@/constants/colors";
 import { Stack, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
-import { backendClient } from "@/services/backendClient";
+import { apiRequest, apiRequestWithIdempotency } from "@/services/api";
 import { useAuthStore } from "@/store/authstore";
 
 export default function RewardsScreen() {
@@ -16,7 +16,7 @@ export default function RewardsScreen() {
   const profile = useAuthStore((state) => state.profile);
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
   const [rewards, setRewards] = useState<Reward[]>([]);
-  const [userXP, setUserXP] = useState(profile?.reward_points ?? 0);
+  const [userXP, setUserXP] = useState(profile?.pointsBalance ?? 0);
   const [loading, setLoading] = useState(true);
   const [claimingRewardId, setClaimingRewardId] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<
@@ -24,33 +24,38 @@ export default function RewardsScreen() {
   >("All Rewards");
 
   useEffect(() => {
-    queueMicrotask(() => setUserXP(profile?.reward_points ?? 0));
-  }, [profile?.reward_points]);
+    queueMicrotask(() => setUserXP(profile?.pointsBalance ?? 0));
+  }, [profile?.pointsBalance]);
 
   useEffect(() => {
     let mounted = true;
-    backendClient
-      .from("rewards")
-      .select("id, description, terms, point_requirement, category, image_url, businesses(name)")
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          Alert.alert("Rewards unavailable", error.message);
-          if (mounted) setLoading(false);
-          return;
-        }
-        if (mounted) setRewards((data ?? []).map((reward) => {
-          const business = Array.isArray(reward.businesses) ? reward.businesses[0] : reward.businesses;
-          return {
-            id: reward.id,
-            title: business?.name ?? "Partner reward",
-            description: reward.description,
-            xpCost: reward.point_requirement,
-            imageUrl: reward.image_url ?? "",
-            category: reward.category,
-          };
-        }));
+    apiRequest<{
+      items: Array<{
+        id: string;
+        title: string;
+        description: string;
+        pointCost: number;
+        imageUrl: string | null;
+        businessName: string;
+      }>;
+      meta: { pointsBalance: number };
+    }>("/rewards")
+      .then((response) => {
+        if (!mounted) return;
+        setUserXP(response.meta.pointsBalance);
+        setRewards(response.items.map((reward) => ({
+          id: reward.id,
+          title: reward.title,
+          description: reward.description,
+          xpCost: reward.pointCost,
+          imageUrl: reward.imageUrl ?? "",
+          category: reward.businessName,
+        })));
+      })
+      .catch((error) => {
+        if (mounted) Alert.alert("Rewards unavailable", error instanceof Error ? error.message : "Unable to load rewards.");
+      })
+      .finally(() => {
         if (mounted) setLoading(false);
       });
     return () => { mounted = false; };
@@ -62,25 +67,15 @@ export default function RewardsScreen() {
     setClaimingRewardId(reward.id);
 
     try {
-      const { data, error } = await backendClient.rpc("redeem_reward", {
-        p_reward_id: reward.id,
+      const result = await apiRequestWithIdempotency<{
+        pointsRemaining?: number;
+        pointsBalance?: number;
+      }>(`/rewards/${encodeURIComponent(reward.id)}/redeem`, {
+        method: "POST",
+        body: JSON.stringify({}),
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      const result = data as {
-        success?: boolean;
-        message?: string;
-        points_remaining?: number;
-      } | null;
-
-      if (!result || !result.success) {
-        throw new Error(result?.message ?? "Reward could not be claimed.");
-      }
-
-      setUserXP(result.points_remaining ?? 0);
+      setUserXP(result.pointsRemaining ?? result.pointsBalance ?? 0);
       await fetchProfile(user.id);
       Alert.alert("Reward claimed", "Your reward is ready to use.", [
         { text: "Later", style: "cancel" },
