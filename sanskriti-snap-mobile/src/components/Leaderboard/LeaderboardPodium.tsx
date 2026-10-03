@@ -11,16 +11,26 @@ interface LeaderboardPodiumProps {
 
 export default function LeaderboardPodium({ users }: LeaderboardPodiumProps) {
   const [firstPlace, secondPlace, thirdPlace] = users;
+  const renderBarTexture = () => (
+    <View pointerEvents="none" style={styles.texture}>
+      {Array.from({ length: 8 }, (_, index) => (
+        <View key={index} style={[styles.textureLine, { top: 12 + index * 16 }]} />
+      ))}
+    </View>
+  );
 
   const renderPodiumUser = (user: LeaderboardUser | undefined, position: number) => {
     if (!user) return null;
 
     const isFirst = position === 1;
     const avatarSize = isFirst ? 88 : 64;
-    const rankBadgeColor = isFirst ? COLORS.secondary : '#FEE2E2';
-    const rankTextColor = isFirst ? '#FFFFFF' : COLORS.primary;
-    const xpBadgeBg = isFirst ? '#FEF3C7' : '#FEE2E2';
-    const xpBadgeText = isFirst ? '#92400E' : COLORS.primary;
+    const rankBadgeColor =
+      position === 1 ? '#FFD700' : position === 2 ? '#F2F4F7' : '#E58A32';
+    const rankTextColor = '#FFFFFF';
+    const xpBadgeBg =
+      position === 1 ? '#FFF4B8' : position === 2 ? '#F2F4F7' : '#FFE0C2';
+    const xpBadgeText =
+      position === 1 ? '#8A5A00' : position === 2 ? '#374151' : '#9A4E00';
 
     return (
       <View style={isFirst ? styles.firstPlaceContainer : styles.podiumUserContainer}>
@@ -62,19 +72,25 @@ export default function LeaderboardPodium({ users }: LeaderboardPodiumProps) {
       {/* 3rd Place - Left */}
       <View style={styles.sideColumn}>
         {renderPodiumUser(thirdPlace, 3)}
-        <View style={[styles.podiumBlock, styles.podiumBlockThird]} />
+        <View style={[styles.podiumBlock, styles.podiumBlockThird]}>
+          {renderBarTexture()}
+        </View>
       </View>
 
       {/* 1st Place - Center */}
       <View style={styles.centerColumn}>
         {renderPodiumUser(firstPlace, 1)}
-        <View style={[styles.podiumBlock, styles.podiumBlockFirst]} />
+        <View style={[styles.podiumBlock, styles.podiumBlockFirst]}>
+          {renderBarTexture()}
+        </View>
       </View>
 
       {/* 2nd Place - Right */}
       <View style={styles.sideColumn}>
         {renderPodiumUser(secondPlace, 2)}
-        <View style={[styles.podiumBlock, styles.podiumBlockSecond]} />
+        <View style={[styles.podiumBlock, styles.podiumBlockSecond]}>
+          {renderBarTexture()}
+        </View>
       </View>
     </View>
   );
@@ -150,19 +166,32 @@ const styles = StyleSheet.create({
   },
   podiumBlock: {
     width: '70%',
-    borderRadius: 8,
     marginTop: 4,
+    overflow: 'hidden',
+    position: 'relative',
   },
   podiumBlockFirst: {
-    height: 80,
-    backgroundColor: COLORS.primary,
+    height: 116,
+    backgroundColor: '#FFD700',
   },
   podiumBlockSecond: {
-    height: 50,
-    backgroundColor: COLORS.disabled,
+    height: 82,
+    backgroundColor: '#F2F4F7',
   },
   podiumBlockThird: {
-    height: 50,
-    backgroundColor: COLORS.disabled,
+    height: 64,
+    backgroundColor: '#E58A32',
+  },
+  texture: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.3,
+  },
+  textureLine: {
+    position: 'absolute',
+    left: -10,
+    right: -10,
+    height: 5,
+    backgroundColor: '#FFFFFF',
+    transform: [{ rotate: '-8deg' }],
   },
 });
