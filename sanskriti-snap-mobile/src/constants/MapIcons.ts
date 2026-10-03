@@ -3,9 +3,9 @@ import { Ionicons } from '@expo/vector-icons';
 export function getCategoryIcon(
   category: string
 ): keyof typeof Ionicons.glyphMap {
-  switch (category) {
+  switch (category.trim().toLowerCase()) {
     case 'temple':
-      return 'home-outline';
+      return 'business-outline';
     case 'statue':
       return 'body-outline';
     case 'carving':
@@ -14,6 +14,16 @@ export function getCategoryIcon(
       return 'business-outline';
     case 'site':
       return 'location-outline';
+    case 'monument':
+      return 'trophy-outline';
+    case 'courtyard':
+      return 'grid-outline';
+    case 'cultural_object':
+    case 'cultural object':
+    case 'cultural-object':
+      return 'color-palette-outline';
+    case 'other':
+      return 'compass-outline';
     default:
       return 'compass-outline';
   }

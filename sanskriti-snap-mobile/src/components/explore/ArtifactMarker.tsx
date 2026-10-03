@@ -32,10 +32,16 @@ export default function ArtifactMarker({
       onSelect={onSelect}
     >
       {isSelected ? (
-        // ✅ SELECTED STATE: Large standard location pin
+        // Keep the selected marker category-specific while making it prominent.
         <View style={styles.selectedContainer}>
-          {/* ✅ FIX 2: Increased size from 44 to 56 for a much more prominent pin */}
-          <Ionicons name="location" size={56} color="#8E3B22" />
+          <View style={styles.selectedIconWrapper}>
+            <Ionicons
+              name={getCategoryIcon(category)}
+              size={28}
+              color="#FFFFFF"
+            />
+          </View>
+          <View style={styles.selectedPointer} />
         </View>
       ) : (
         // ✅ DEFAULT STATE: Category icon with pointer
@@ -85,12 +91,32 @@ const styles = StyleSheet.create({
   selectedContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    // Ensure the large icon doesn't get clipped by its container
     overflow: 'visible',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  selectedIconWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#8E3B22',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  selectedPointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 11,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#8E3B22',
+    marginTop: -2,
   },
 });
