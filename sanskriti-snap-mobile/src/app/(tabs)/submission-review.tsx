@@ -16,8 +16,7 @@ import SubmissionInfo from '../../components/submission/SubmissionInfo';
 import SubmissionPreview from '../../components/submission/SubmissionPreview';
 import VerificationNotice from '../../components/submission/VerificationNotice';
 import type { SubmissionData } from '../../constants/data/mockSubmission';
-import { backendClient } from '@/services/backendClient';
-import { apiRequest } from '@/services/api';
+import { ApiRequestError, apiRequest, apiRequestWithIdempotency } from '@/services/api';
 import { useAuthStore } from '@/store/authstore';
 
 type ReviewData = SubmissionData & {
@@ -122,119 +121,93 @@ export default function SubmissionReviewScreen() {
 
             setSubmitting(true);
             try {
-              // 1. Upload Image to Storage (Schema: submission-snaps/{user_id}/{submission_id}/{filename})
-              const submissionId = `${user.id}/${formData.artifactId}/${Date.now()}.jpg`;
-              const photoBlob = await (
-                await fetch(formData.primaryImageUri)
-              ).blob();
-
-              const { error: uploadError } = await backendClient.storage
-                .from('submission-snaps')
-                .upload(submissionId, photoBlob, {
-                  contentType: 'image/jpeg',
-                  upsert: false,
+              const uploadMedia = async (uri: string, purpose: 'VERIFICATION_SNAP' | 'VERIFICATION_GALLERY') => {
+                const sign = await apiRequest<{
+                  cloudName: string;
+                  apiKey: string;
+                  timestamp: number;
+                  signature: string;
+                  folder: string;
+                  resourceType: 'image';
+                }>('/media/sign', {
+                  method: 'POST',
+                  body: JSON.stringify({ purpose, contentType: 'image/jpeg' }),
                 });
-
-              if (uploadError) throw uploadError;
-
-              // 2. Insert Submission Record
-              const { data: submissionData, error: insertError } =
-                await backendClient
-                  .from('submissions')
-                  .insert({
-                    user_id: user.id,
-                    artifact_id: formData.artifactId,
-                    main_snap_url: submissionId, // Use the uploaded path
-                    private_note: formData.privateNote,
-                    user_submitted_at: new Date().toISOString(),
-                    gps_lat: formData.gpsLat,
-                    gps_lng: formData.gpsLng,
-                    gps_accuracy_m: formData.gpsAccuracy,
-                    gps_captured_at: formData.gpsCapturedAt,
-                  })
-                  .select('id')
-                  .single();
-
-              if (insertError) throw insertError;
-
-              if (formData.galleryImages.length > 0) {
-                const galleryRows = [];
-
-                for (const [
-                  index,
-                  imageUri,
-                ] of formData.galleryImages.entries()) {
-                  const galleryPath = `${user.id}/${submissionData.id}/gallery-${index}.jpg`;
-                  const galleryBlob = await (await fetch(imageUri)).blob();
-                  const { error: galleryUploadError } = await backendClient.storage
-                    .from('submission-snaps')
-                    .upload(galleryPath, galleryBlob, {
-                      contentType: 'image/jpeg',
-                      upsert: false,
-                    });
-
-                  if (galleryUploadError) throw galleryUploadError;
-                  galleryRows.push({
-                    submission_id: submissionData.id,
-                    url: galleryPath,
-                    is_public: formData.isPublic,
-                  });
+                const file = await (await fetch(uri)).blob();
+                const uploadBody = new FormData();
+                uploadBody.append('file', file);
+                uploadBody.append('api_key', sign.apiKey);
+                uploadBody.append('timestamp', String(sign.timestamp));
+                uploadBody.append('signature', sign.signature);
+                uploadBody.append('folder', sign.folder);
+                const response = await fetch(
+                  `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`,
+                  { method: 'POST', body: uploadBody },
+                );
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload?.public_id) {
+                  throw new Error(payload?.error?.message ?? 'Image upload failed.');
                 }
-
-                const { error: galleryInsertError } = await backendClient
-                  .from('submission_photos')
-                  .insert(galleryRows);
-
-                if (galleryInsertError) throw galleryInsertError;
-              }
-
-              // 3. Finalize Discovery (Server-side verification)
-              const { data: result, error: rpcError } = await backendClient.rpc(
-                'finalize_discovery',
-                { p_submission_id: submissionData.id }
-              );
-
-              if (rpcError) {
-                // If RPC fails unexpectedly, fallback to pending screen
-                router.replace({
-                  pathname: '/(tabs)/verification-pending',
-                  params: { submissionId: submissionData.id },
-                });
-                return;
-              }
-
-              const finalizeResult = result as {
-                success?: boolean;
-                discovery_id?: string;
-                error_code?: string;
-                message?: string;
+                return String(payload.public_id);
               };
 
-              // 4. Handle Results
-              if (finalizeResult.success && finalizeResult.discovery_id) {
+              const verificationImagePublicId = await uploadMedia(
+                formData.primaryImageUri,
+                'VERIFICATION_SNAP',
+              );
+              const additionalPhotos = await Promise.all(
+                formData.galleryImages.slice(0, 6).map(async (uri) => ({
+                  publicId: await uploadMedia(uri, 'VERIFICATION_GALLERY'),
+                })),
+              );
+
+              const result = await apiRequestWithIdempotency<{
+                discoveryId: string | null;
+                gps: { status: string; distanceMeters: number | null; requiredMeters: number };
+              }>('/verification-attempts', {
+                method: 'POST',
+                body: JSON.stringify({
+                  artifactId: formData.artifactId,
+                  verificationImagePublicId,
+                  additionalPhotos,
+                  location: {
+                    latitude: formData.gpsLat,
+                    longitude: formData.gpsLng,
+                    accuracyMeters: Math.max(
+                      1,
+                      Math.min(100, formData.gpsAccuracy ?? 100),
+                    ),
+                    capturedAt: formData.gpsCapturedAt,
+                  },
+                  privateNote: formData.privateNote || null,
+                }),
+              });
+
+              if (result.discoveryId) {
                 await fetchProfile(user.id);
                 router.replace({
                   pathname: '/(tabs)/discovery-success',
-                  params: { discoveryId: finalizeResult.discovery_id },
+                  params: { discoveryId: result.discoveryId },
                 });
                 return;
               }
-
-              if (finalizeResult.error_code === 'GPS_OUTSIDE_RADIUS') {
-                // Calculate distance for UI feedback
-                const { data: nearbyArtifacts } = await backendClient.rpc(
-                  'nearby_artifacts',
-                  {
-                    p_lat: formData.gpsLat,
-                    p_lng: formData.gpsLng,
-                    p_radius_m: 2147483647,
-                  }
-                );
-
-                const locationResult = nearbyArtifacts?.find(
-                  (artifact: any) => artifact.id === formData.artifactId
-                );
-
+              if (result.gps.status !== 'WITHIN_RADIUS') {
+                router.replace({
+                  pathname: '/(tabs)/verification-failed',
+                  params: {
+                    artifactId: formData.artifactId,
+                    distanceRemaining: String(Math.max(
+                      0,
+                      Math.round((result.gps.distanceMeters ?? 0) - result.gps.requiredMeters),
+                    )),
+                  },
+                });
+                return;
+              }
+              Alert.alert('Verification failed', 'Unable to verify this discovery.');
+            } catch (error) {
+              console.error('Submission error:', error);
+              if (error instanceof ApiRequestError && error.code === 'GPS_OUTSIDE_RADIUS') {
                 router.replace({
                   pathname: '/(tabs)/verification-failed',
                   params: {
@@ -243,25 +216,23 @@ export default function SubmissionReviewScreen() {
                       Math.max(
                         0,
                         Math.round(
-                          (locationResult?.distance_m ?? 0) -
-                            (locationResult?.verification_radius_m ?? 0)
-                        )
-                      )
+                          Number(
+                            error.details &&
+                              typeof error.details === 'object' &&
+                              'shortfallMeters' in error.details
+                              ? error.details.shortfallMeters
+                              : 0,
+                          ),
+                        ),
+                      ),
                     ),
                   },
                 });
                 return;
               }
-
-              Alert.alert(
-                'Verification failed',
-                finalizeResult.message ?? 'Unable to verify this discovery.'
-              );
-            } catch (error: any) {
-              console.error('Submission error:', error);
               Alert.alert(
                 'Submission failed',
-                error.message ??
+                error instanceof Error ? error.message :
                   'We could not upload your snap. Please try again.'
               );
             } finally {
