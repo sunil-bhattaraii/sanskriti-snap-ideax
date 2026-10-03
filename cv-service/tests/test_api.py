@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from app import service
+from app import auth, service
 from app.errors import CvError
 from app.main import app
 from app.references import StoredReference
@@ -56,6 +56,16 @@ def test_requires_auth():
     assert r.status_code == 401 and r.json()["error"]["code"] == "UNAUTHORIZED"
     r = client.post("/compare", json={}, headers={"Authorization": "Bearer nope"})
     assert r.status_code == 401
+
+
+def test_test_environment_bypasses_auth(monkeypatch):
+    class TestSettings:
+        environment = "test"
+        cv_service_secret = "test-secret"
+
+    monkeypatch.setattr(auth, "get_settings", lambda: TestSettings())
+    r = client.post("/embed", json={"image": "x"})
+    assert r.status_code == 200
 
 
 def test_error_envelope_matches_contract():

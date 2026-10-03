@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    environment: str = "production"
     cv_service_secret: str
 
     cv_service_model: str = "openai/clip-vit-base-patch32"
