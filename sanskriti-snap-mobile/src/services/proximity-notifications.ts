@@ -3,7 +3,7 @@ import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
 import { Platform } from "react-native";
-import { backendClient } from "./backendClient";
+import { apiRequest } from "./api";
 
 export const PROXIMITY_TASK_NAME = "sanskriti-proximity-geofence";
 const NOTIFIED_ARTIFACTS_KEY = "@sanskriti_proximity_notified_v1";
@@ -14,7 +14,13 @@ const notificationLocks = new Set<string>();
 
 type ProximityTaskData = { eventType: Location.GeofencingEventType; region: Location.LocationRegion };
 
-type NearbyArtifact = { id: string; name: string; lat: number; lng: number; verification_radius_m: number };
+type NearbyArtifact = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  verificationRadiusMeters: number;
+};
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
@@ -30,8 +36,6 @@ if (!TaskManager.isTaskDefined(PROXIMITY_TASK_NAME)) {
     const artifactId = data.region.identifier;
     if (!artifactId) return;
 
-    const { data: sessionData } = await backendClient.auth.getSession();
-    if (!sessionData.session) return;
     if (notificationLocks.has(artifactId)) return;
     notificationLocks.add(artifactId);
 
@@ -70,7 +74,9 @@ async function readJson<T>(key: string, fallback: T): Promise<T> {
 export function getArtifactPathFromNotification(response: Notifications.NotificationResponse | null): string | null {
   const data = response?.notification.request.content.data;
   const artifactId = data && typeof data.artifactId === "string" ? data.artifactId : null;
-  return artifactId && /^[0-9a-f-]{36}$/i.test(artifactId) ? `/artifacts/${artifactId}` : null;
+  return artifactId && /^[0-9a-f]{24}$/i.test(artifactId)
+    ? `/artifacts/${artifactId}`
+    : null;
 }
 
 export async function prepareProximityNotifications(): Promise<boolean> {
@@ -108,16 +114,15 @@ export async function refreshProximityGeofences(enabled: boolean, radiusMeters: 
   const location =
     (await Location.getLastKnownPositionAsync({ maxAge: 30 * 60 * 1000, requiredAccuracy: 1000 })) ??
     (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
-  const { data, error } = await backendClient.rpc("nearby_artifacts", {
-    p_lat: location.coords.latitude,
-    p_lng: location.coords.longitude,
-    p_radius_m: 50000,
-  });
-  if (error) throw error;
-
-  const artifacts = (data ?? [])
+  const response = await apiRequest<{ items: NearbyArtifact[] }>(
+    `/artifacts/nearby?latitude=${location.coords.latitude}&longitude=${location.coords.longitude}&radiusMeters=50000`,
+  );
+  const artifacts = (response.items ?? [])
     .filter(
-      (artifact): artifact is NearbyArtifact => Boolean(artifact.id) && Number.isFinite(artifact.lat) && Number.isFinite(artifact.lng),
+      (artifact) =>
+        Boolean(artifact.id) &&
+        Number.isFinite(artifact.latitude) &&
+        Number.isFinite(artifact.longitude),
     )
     .slice(0, MAX_GEOFENCES);
 
@@ -133,9 +138,9 @@ export async function refreshProximityGeofences(enabled: boolean, radiusMeters: 
     PROXIMITY_TASK_NAME,
     artifacts.map((artifact) => ({
       identifier: artifact.id,
-      latitude: artifact.lat,
-      longitude: artifact.lng,
-      radius: Math.max(radiusMeters, artifact.verification_radius_m ?? 0),
+      latitude: artifact.latitude,
+      longitude: artifact.longitude,
+      radius: Math.max(radiusMeters, artifact.verificationRadiusMeters ?? 0),
       notifyOnEnter: true,
       notifyOnExit: false,
     })),

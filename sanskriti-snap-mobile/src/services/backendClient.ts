@@ -101,7 +101,10 @@ export const backendClient = {
       });
       return { data, error: null };
     }
-    return { data: null, error: new Error(`Unsupported backend operation: ${name}`) };
+    return {
+      data: null,
+      error: new Error(`Unsupported backend operation: ${name}`),
+    };
   },
   auth: {
     getSession: async () => ({ data: { session: null }, error: null }),

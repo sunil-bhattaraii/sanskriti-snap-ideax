@@ -18,7 +18,7 @@ import {
   type MapRef,
 } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
-import { backendClient } from '@/services/backendClient';
+import { apiRequest } from '@/services/api';
 import { COLORS } from '@/constants/colors';
 import ArtifactMarker from '@/components/explore/ArtifactMarker';
 import MapControls from '@/components/explore/MapControls';
@@ -154,23 +154,17 @@ export default function NavigationScreen() {
       ];
       setUserLocation(currentCoords);
 
-      const { data: artifactData, error } = await backendClient.rpc(
-        'artifact_navigation',
-        {
-          p_artifact_id: artifactId,
-        }
-      );
-
-      if (error) throw error;
-
-      const targetArtifact = artifactData?.[0];
-      if (!targetArtifact) {
-        throw new Error('Artifact is not available for navigation');
-      }
+      const targetArtifact = await apiRequest<{
+        id: string;
+        name: string;
+        latitude: number;
+        longitude: number;
+        verificationRadiusMeters: number;
+      }>(`/artifacts/${encodeURIComponent(artifactId)}`);
 
       const coords: Coordinate = [
-        Number(targetArtifact.lng),
-        Number(targetArtifact.lat),
+        Number(targetArtifact.longitude),
+        Number(targetArtifact.latitude),
       ];
       if (!Number.isFinite(coords[0]) || !Number.isFinite(coords[1])) {
         throw new Error('Artifact has invalid map coordinates');
@@ -181,7 +175,7 @@ export default function NavigationScreen() {
         name: targetArtifact.name,
         lat: coords[1],
         lng: coords[0],
-        verification_radius_m: targetArtifact.verification_radius_m,
+        verification_radius_m: targetArtifact.verificationRadiusMeters,
       });
 
       setTimeout(() => {

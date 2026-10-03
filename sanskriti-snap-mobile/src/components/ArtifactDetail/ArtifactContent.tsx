@@ -33,8 +33,11 @@ export default function ArtifactContent({
         </View>
         <Text style={styles.lockedTitle}>Story Locked</Text>
         <Text style={styles.lockedDescription}>
+          {artifact.description.slice(0, 140)}
+          {artifact.description.length > 140 ? '...' : ''}
+          {'\n\n'}
           Walk {artifact.story_unlock_radius_m}m closer to this location to
-          unlock the hidden history and earn your XP.
+          unlock the full hidden history.
         </Text>
       </View>
     );

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
+import * as Location from "expo-location";
 import { View, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Share, Alert, TouchableOpacity, Text } from "react-native";
 import { Href, useRouter, useLocalSearchParams } from "expo-router";
-import { backendClient } from "../../services/backendClient";
 import { apiRequest } from "../../services/api";
 import { COLORS } from "../../constants/colors";
 import { useAuthStore } from "@/store/authstore";
@@ -43,10 +43,16 @@ export default function ArtifactDetailScreen() {
     try {
       setLoading(true);
 
-      const artifactData = await apiRequest<ArtifactDetail>(
+      const response = await apiRequest<ArtifactDetail>(
         `/artifacts/${encodeURIComponent(artifactId)}`,
       );
-      setArtifact(artifactData as ArtifactDetail);
+      const artifactData = {
+        ...response,
+        reference_images: response.referenceImageUrls ?? [],
+        human_readable_location: response.humanReadableLocation,
+        story_unlock_radius_m: response.storyUnlockRadiusMeters,
+      };
+      setArtifact(artifactData);
 
       if (user) {
         setDiscoveryStatus({
@@ -62,6 +68,54 @@ export default function ArtifactDetailScreen() {
       setRefreshing(false);
     }
   };
+
+  const unlockStoryAtCurrentLocation = async () => {
+    if (!artifactId || !artifact || artifact.storyUnlocked) return;
+    const permission = await Location.getForegroundPermissionsAsync();
+    if (!permission.granted) return;
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    const result = await apiRequest<{
+      unlocked: boolean;
+      distanceMeters: number;
+      story?: string;
+    }>(`/artifacts/${encodeURIComponent(artifactId)}/unlock-story`, {
+      method: 'POST',
+      body: JSON.stringify({
+        location: {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          capturedAt: new Date(position.timestamp).toISOString(),
+        },
+      }),
+    });
+    setDiscoveryStatus((current) => ({
+      ...current,
+      distanceToArtifact: result.distanceMeters,
+      isStoryUnlocked: result.unlocked,
+    }));
+    if (result.unlocked) {
+      setArtifact((current) =>
+        current
+          ? { ...current, storyUnlocked: true, story: result.story ?? '' }
+          : current,
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (!artifact || artifact.storyUnlocked) return;
+    void unlockStoryAtCurrentLocation().catch((error) => {
+      console.warn('Unable to check story unlock distance:', error);
+    });
+    const interval = setInterval(() => {
+      void unlockStoryAtCurrentLocation().catch((error) => {
+        console.warn('Unable to check story unlock distance:', error);
+      });
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [artifact, artifactId]);
 
   const handleShare = async () => {
     if (!artifact) return;
@@ -118,7 +172,7 @@ export default function ArtifactDetailScreen() {
     );
   }
 
-  const isUnlocked = discoveryStatus.isDiscovered;
+  const isUnlocked = discoveryStatus.isStoryUnlocked;
 
   return (
     <View style={styles.container}>
@@ -141,7 +195,7 @@ export default function ArtifactDetailScreen() {
         storyUnlocked={discoveryStatus.isDiscovered}
         isDiscovered={discoveryStatus.isDiscovered}
         onNavigate={handleStartNavigation}
-        onTakeSnap={discoveryStatus.isDiscovered ? undefined : handleTakeSnap}
+        onTakeSnap={discoveryStatus.isStoryUnlocked ? handleTakeSnap : undefined}
       />
     </View>
   );
