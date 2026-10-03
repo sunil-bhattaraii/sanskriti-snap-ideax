@@ -1,30 +1,43 @@
-export interface User {
+import { create } from 'zustand';
+
+import { apiRequest } from '@/services/api';
+import type { Profile } from '@/types/backend';
+
+export type AppUser = {
   id: string;
   email: string;
   username: string;
   fullName: string;
-  avatarUrl?: string;
-  xp: number;
-  level: number;
-  discoveredCount: number;
-}
-
-const mockUser: User = {
-  id: 'demo-user-1',
-  email: 'explorer@sanskritsnap.org',
-  username: 'heritage_explorer',
-  fullName: 'Aarav Sharma',
-  avatarUrl: undefined,
-  xp: 1450,
-  level: 4,
-  discoveredCount: 12,
+  imageUrl?: string;
 };
 
-export const useAuthStore = () => {
-  return {
-    user: mockUser,
-    isAuthenticated: true,
-    login: (_email: string) => {},
-    logout: () => {},
-  };
+type AuthState = {
+  user: AppUser | null;
+  profile: Profile | null;
+  loading: boolean;
+  setSession: (user: AppUser | null) => void;
+  fetchProfile: (userId?: string) => Promise<void>;
+  setSignOut: (signOut: () => Promise<void>) => void;
+  signOut: () => Promise<void>;
 };
+
+let signOutHandler: (() => Promise<void>) | null = null;
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  profile: null,
+  loading: true,
+  setSession: (user) => set({ user, loading: false, ...(user ? {} : { profile: null }) }),
+  fetchProfile: async () => {
+    const profile = await apiRequest<Profile>('/me');
+    set({ profile });
+  },
+  setSignOut: (handler) => {
+    signOutHandler = handler;
+  },
+  signOut: async () => {
+    if (!signOutHandler) throw new Error('Authentication is not initialized.');
+    await signOutHandler();
+    set({ user: null, profile: null, loading: false });
+  },
+}));
