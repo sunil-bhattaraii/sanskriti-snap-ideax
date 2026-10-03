@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SavedPlace } from '../data/mockSavedPlaces';
+import type { SavedPlace } from '../services/saved-places';
+import CachedImage from './CachedImage';
 
 interface SavedPlaceCardProps {
   item: SavedPlace;
@@ -12,23 +13,23 @@ export const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({ item, onNavigate
   return (
     <View style={styles.card}>
       <View style={styles.cardTopRow}>
-        <Image
-          source={{ uri: item.image }}
+        <CachedImage
+          remoteUri={item.image}
           style={styles.cardImage}
           resizeMode="cover"
         />
-        
+
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
             <Ionicons name="bookmark" size={20} color="#9C4221" />
           </View>
-          
+
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={14} color="#6B7280" />
             <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
           </View>
-          
+
           <Text style={styles.distanceText}>{item.distance}</Text>
         </View>
       </View>

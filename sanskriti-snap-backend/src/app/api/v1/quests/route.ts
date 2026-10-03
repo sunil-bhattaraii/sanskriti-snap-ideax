@@ -11,6 +11,7 @@ import { getAuthContext } from "@/lib/auth";
 import { connect } from "@/lib/db";
 import { toErrorResponse } from "@/lib/errors";
 import { Quest, UserQuestProgress } from "@/models/gamification";
+import { Discovery } from "@/models/verification";
 
 export async function GET() {
   try {
@@ -25,14 +26,29 @@ export async function GET() {
       new Map();
 
     if (ctx?.user) {
-      const progressDocs = await UserQuestProgress.find({
-        userId: ctx.user._id,
-      }).lean();
+      const [progressDocs, discoveryDocs] = await Promise.all([
+        UserQuestProgress.find({ userId: ctx.user._id }).lean(),
+        Discovery.find({ userId: ctx.user._id }).select("artifactId").lean(),
+      ]);
+      const discoveredArtifactIds = new Set(discoveryDocs.map((d) => String(d.artifactId)));
 
       progressDocs.forEach((p) => {
         progressMap.set(String(p.questId), {
-          discoveredCount: p.discoveredArtifactIds.length,
+          discoveredCount: p.discoveredArtifactIds.filter((id) =>
+            discoveredArtifactIds.has(String(id)),
+          ).length,
           completed: !!p.completedAt,
+        });
+      });
+
+      quests.forEach((quest) => {
+        if (progressMap.has(String(quest._id))) return;
+        const discoveredCount = quest.artifactIds.filter((id) =>
+          discoveredArtifactIds.has(String(id)),
+        ).length;
+        progressMap.set(String(quest._id), {
+          discoveredCount,
+          completed: quest.artifactIds.length > 0 && discoveredCount === quest.artifactIds.length,
         });
       });
     }

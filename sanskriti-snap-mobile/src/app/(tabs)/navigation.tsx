@@ -97,6 +97,7 @@ export default function NavigationScreen() {
   const [walkedRouteIndex, setWalkedRouteIndex] = useState(0);
   const lastUnlockCheckAt = useRef(0);
   const unlockRequestInFlight = useRef(false);
+  const storyUnlockPromptShown = useRef(false);
 
   useEffect(() => {
     loadArtifactAndStartNavigation();
@@ -144,6 +145,20 @@ export default function NavigationScreen() {
           artifactId: artifact.id,
           distanceMeters: result.distanceMeters,
         });
+        if (!storyUnlockPromptShown.current && distance > artifact.verification_radius_m) {
+          storyUnlockPromptShown.current = true;
+          Alert.alert(
+            'Story unlocked',
+            `You can now read the story for ${artifact.name}. You can continue navigating or view it now.`,
+            [
+              {
+                text: 'View Story',
+                onPress: () => router.replace(`/artifacts/${artifact.id}`),
+              },
+              { text: 'Continue Navigation', style: 'cancel' },
+            ],
+          );
+        }
       }
     } finally {
       unlockRequestInFlight.current = false;
@@ -334,6 +349,7 @@ export default function NavigationScreen() {
         {
           text: 'Stay Here',
           style: 'cancel',
+          onPress: () => router.replace(`/artifacts/${artifactId}`),
         },
       ]
     );

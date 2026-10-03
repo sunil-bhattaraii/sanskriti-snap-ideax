@@ -12,6 +12,7 @@ import { connect } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
 import { Badge, Quest, UserQuestProgress } from "@/models/gamification";
 import { Artifact } from "@/models/artifact";
+import { Discovery } from "@/models/verification";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -34,20 +35,20 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 
     // Fetch user's progress for this quest
-    const progress = await UserQuestProgress.findOne({
-      userId: user._id,
-      questId: quest._id,
-    }).lean();
+    const [progress, discoveryDocs] = await Promise.all([
+      UserQuestProgress.findOne({ userId: user._id, questId: quest._id }).lean(),
+      Discovery.find({ userId: user._id }).select("artifactId").lean(),
+    ]);
 
-    const discoveredArtifactIds = new Set(
-      (progress?.discoveredArtifactIds ?? []).map(String),
-    );
-    const discoveredCount = discoveredArtifactIds.size;
+    const discoveredArtifactIds = new Set(discoveryDocs.map((d) => String(d.artifactId)));
+    (progress?.discoveredArtifactIds ?? []).forEach((id) => discoveredArtifactIds.add(String(id)));
+    const questArtifactIds = new Set(quest.artifactIds.map(String));
+    const questDiscoveredCount = [...discoveredArtifactIds].filter((id) => questArtifactIds.has(id)).length;
     const artifactCount = quest.artifactIds.length;
     const progressPercent =
-      artifactCount > 0 ? Math.round((discoveredCount / artifactCount) * 100) : 0;
+      artifactCount > 0 ? Math.round((questDiscoveredCount / artifactCount) * 100) : 0;
     const completed =
-      progress?.completedAt !== null && progress?.completedAt !== undefined;
+      Boolean(progress?.completedAt) || (artifactCount > 0 && questDiscoveredCount === artifactCount);
 
     // Fetch artifact details
     const artifacts = await Artifact.find({ _id: { $in: quest.artifactIds } })
@@ -81,7 +82,7 @@ export async function GET(_request: Request, context: RouteContext) {
       description: quest.description,
       xpReward: quest.xpReward,
       artifactCount,
-      discoveredCount,
+      discoveredCount: questDiscoveredCount,
       progressPercent,
       completed,
       badge: badgeInfo,

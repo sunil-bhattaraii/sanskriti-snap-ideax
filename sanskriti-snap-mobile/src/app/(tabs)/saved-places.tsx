@@ -1,49 +1,44 @@
-// src/app/(tabs)/saved-places.tsx
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
-import { SavedPlacesHeader } from '../../components/SavedPlacesHeader';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import ScreenHeader from '../../components/ScreenHeader';
 import { SavedPlaceCard } from '../../components/SavedPlaceCard';
-import { BottomNav } from '../../components/BottomNav';
-import { mockSavedPlaces } from '../../data/mockSavedPlaces';
+import { readSavedPlaces, type SavedPlace } from '../../services/saved-places';
 
 export default function SavedPlacesScreen() {
   const router = useRouter();
+  const [places, setPlaces] = React.useState<SavedPlace[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-  const handleNavigate = (placeName: string) => {
-    console.log(`Navigating to ${placeName}`);
-    // router.push(`/navigation?place=${placeName}`);
-  };
-
-  const handleTabPress = (tab: string) => {
-    if (tab === 'profile') return; // Already on profile-related screen
-    const paths: Record<string, any> = {
-      index: '/',
-      explore: '/explore',
-      collection: '/collection',
-    };
-    router.push(paths[tab] || '/');
-  };
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true;
+      setLoading(true);
+      readSavedPlaces()
+        .then((saved) => mounted && setPlaces(saved))
+        .catch(() => Alert.alert('Saved places unavailable', 'Unable to read saved places.'))
+        .finally(() => mounted && setLoading(false));
+      return () => { mounted = false; };
+    }, []),
+  );
 
   return (
     <View style={styles.container}>
-      <SavedPlacesHeader />
-      
-      <ScrollView 
+      <ScreenHeader title="Saved Places" />
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {mockSavedPlaces.map((place) => (
+        {loading ? <ActivityIndicator /> : places.length === 0 ? (
+          <Text style={styles.emptyText}>Save an artifact to see it here.</Text>
+        ) : places.map((place) => (
           <SavedPlaceCard
             key={place.id}
             item={place}
-            onNavigate={() => handleNavigate(place.name)}
+            onNavigate={() => router.push({ pathname: '/(tabs)/navigation', params: { artifactId: place.id } })}
           />
         ))}
       </ScrollView>
-
-      {/* Profile is active in the bottom nav as this is accessed from the Profile menu */}
-      <BottomNav activeTab="profile" onTabPress={handleTabPress} />
     </View>
   );
 }
@@ -57,4 +52,5 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
   },
+  emptyText: { padding: 24, textAlign: 'center', color: '#6B7280' },
 });
