@@ -21,8 +21,8 @@ import { z } from "zod";
 export const CV_SERVICE_URL_ENV = "CV_SERVICE_URL";
 export const CV_SERVICE_SECRET_ENV = "CV_SERVICE_SECRET";
 
-/** docs/API Contract.md 6.2a — 8s per attempt, 3 attempts, ~25s worst case. */
-export const CV_ATTEMPT_TIMEOUT_MS = 8_000;
+/** docs/API Contract.md 6.2a — 10s per attempt, 3 attempts, ~31s worst case. */
+export const CV_ATTEMPT_TIMEOUT_MS = 10_000;
 export const CV_MAX_ATTEMPTS = 3;
 
 /** A CV-enabled artifact with no reference set is a configuration error. */
@@ -209,12 +209,19 @@ export function createCvClient(config: CvClientConfig) {
     parse: (value: unknown) => TResponse,
   ): Promise<TResponse> {
     let lastReason: CvUnavailableReason = "unreachable";
+    const startedAt = Date.now();
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), attemptTimeoutMs);
 
       try {
+        console.info("[cv] request", {
+          path,
+          attempt,
+          maxAttempts,
+          timeoutMs: attemptTimeoutMs,
+        });
         const res = await doFetch(`${config.baseUrl}${path}`, {
           method: "POST",
           headers: {
@@ -230,11 +237,31 @@ export function createCvClient(config: CvClientConfig) {
           // Retrying it just burns the request budget, so surface it at once.
           if (res.status >= 400 && res.status < 500) {
             const detail = await res.text().catch(() => "");
+            console.warn("[cv] non-success response", {
+              path,
+              attempt,
+              status: res.status,
+              durationMs: Date.now() - startedAt,
+              detail,
+            });
             throw new CvServiceUnavailableError("bad_response", attempt, detail);
           }
           lastReason = "unreachable";
+          console.warn("[cv] retryable response", {
+            path,
+            attempt,
+            status: res.status,
+            durationMs: Date.now() - startedAt,
+          });
         } else {
-          const parsed = parse(await res.json());
+          const payload = await res.json();
+          const parsed = parse(payload);
+          console.info("[cv] response", {
+            path,
+            attempt,
+            status: res.status,
+            durationMs: Date.now() - startedAt,
+          });
           clearTimeout(timer);
           return parsed;
         }
@@ -242,6 +269,13 @@ export function createCvClient(config: CvClientConfig) {
         if (err instanceof CvServiceUnavailableError) throw err;
         lastReason =
           err instanceof Error && err.name === "AbortError" ? "timeout" : "unreachable";
+        console.error("[cv] request failed", {
+          path,
+          attempt,
+          reason: lastReason,
+          error: err instanceof Error ? err.message : String(err),
+          durationMs: Date.now() - startedAt,
+        });
       } finally {
         clearTimeout(timer);
       }
@@ -252,6 +286,12 @@ export function createCvClient(config: CvClientConfig) {
       }
     }
 
+    console.error("[cv] exhausted retries", {
+      path,
+      attempts: maxAttempts,
+      reason: lastReason,
+      durationMs: Date.now() - startedAt,
+    });
     throw new CvServiceUnavailableError(lastReason, maxAttempts);
   }
 

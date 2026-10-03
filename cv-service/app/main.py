@@ -18,7 +18,16 @@ logger = logging.getLogger("cv")
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    settings = get_settings()
+    logger.info(
+        "cv service starting environment=%s mongo_database=%s references_collection=%s model=%s",
+        settings.environment,
+        settings.mongodb_db,
+        settings.mongodb_references_collection,
+        settings.cv_service_model,
+    )
     get_registry().preload()  # raises -> process refuses to start with a broken model
+    logger.info("cv service ready")
     yield
 
 
@@ -46,6 +55,14 @@ def embed(req: EmbedRequest):
 
 @router.post("/compare", response_model=CompareResponse)
 def compare(req: CompareRequest):
+    logger.info(
+        "compare request artifact=%s inline_references=%d top_k=%d image_present=%s model=%s",
+        req.artifactId or "<inline>",
+        len(req.references or []),
+        req.topK,
+        bool(req.image),
+        req.model or "default",
+    )
     return run_compare(req)
 
 
@@ -60,19 +77,34 @@ def health():
 
 
 @app.exception_handler(CvError)
-async def _cv_error(_: Request, exc: CvError):
+async def _cv_error(request: Request, exc: CvError):
+    logger.warning(
+        "request failed method=%s path=%s status=%d code=%s message=%s",
+        request.method,
+        request.url.path,
+        exc.status,
+        exc.code,
+        exc.message,
+    )
     return error_response(exc.code, exc.status, exc.message)
 
 
 @app.exception_handler(RequestValidationError)
-async def _validation_error(_: Request, exc: RequestValidationError):
+async def _validation_error(request: Request, exc: RequestValidationError):
     first = exc.errors()[0] if exc.errors() else {}
     loc = ".".join(str(p) for p in first.get("loc", ()) if p != "body")
     msg = first.get("msg", "invalid request")
+    logger.warning(
+        "request validation failed method=%s path=%s location=%s message=%s",
+        request.method,
+        request.url.path,
+        loc or "body",
+        msg,
+    )
     return error_response("INVALID_REQUEST", 400, f"{loc}: {msg}" if loc else msg)
 
 
 @app.exception_handler(Exception)
-async def _unhandled(_: Request, exc: Exception):
-    logger.exception("unhandled error")
+async def _unhandled(request: Request, exc: Exception):
+    logger.exception("unhandled error method=%s path=%s", request.method, request.url.path)
     return error_response("INTERNAL_ERROR", 500, "Internal error")  # no internals leaked

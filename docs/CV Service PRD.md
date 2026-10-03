@@ -78,7 +78,7 @@ FastAPI computes **embeddings, per-reference similarity, and top-K aggregation**
 - The service is **internal only**. It is never addressed from the mobile app or from any client. Only Next.js calls it.
 - It is reached via `CV_SERVICE_URL` (e.g. `http://127.0.0.1:8000` in dev; a private/internal endpoint in production), authenticated with `CV_SERVICE_SECRET`.
 - Both `CV_SERVICE_URL` and `CV_SERVICE_SECRET` are **server-only** (`sanskriti-snap-backend/src/lib/env.ts`). Neither is a `NEXT_PUBLIC_` variable; the secret must never reach the browser.
-- The service runs on its own host. From Next.js it is treated as **flaky**: every call has an 8 s per-attempt timeout, up to 3 retries with linear backoff (`sanskriti-snap-backend/src/lib/cv-contract.ts:CV_ATTEMPT_TIMEOUT_MS`, `CV_MAX_ATTEMPTS`), and a failure aborts the request with `503`/`504` and persists **nothing**.
+- The service runs on its own host. From Next.js it is treated as **flaky**: every call has a 10 s per-attempt timeout, up to 3 retries with linear backoff (`sanskriti-snap-backend/src/lib/cv-contract.ts:CV_ATTEMPT_TIMEOUT_MS`, `CV_MAX_ATTEMPTS`), and a failure aborts the request with `503`/`504` and persists **nothing**.
 
 ---
 
@@ -306,11 +306,11 @@ Default threshold **0.72**, default `topK` **3** (`sanskriti-snap-backend/src/li
 
 | Item | Budget |
 | --- | --- |
-| Per-attempt timeout | 8 s (`CV_ATTEMPT_TIMEOUT_MS`) |
+| Per-attempt timeout | 10 s (`CV_ATTEMPT_TIMEOUT_MS`) |
 | Retries per request | 3 (`CV_MAX_ATTEMPTS`), linear backoff `min(1000·n, 2000) ms` |
-| Worst-case CV wall time | ~24 s |
+| Worst-case CV wall time | ~30 s |
 | GPS + DB + transaction | < 1 s |
-| **Worst-case total** | **~25 s** |
+| **Worst-case total** | **~31 s** |
 
 The **deployment must tolerate ~30 s per request** (serverless `maxDuration` must exceed this, or the API must run on a long-duration host). An unbounded CV call turns one slow GPU into a hung request; the 8 s per-attempt timeout is mandatory, not a suggestion. If the platform caps requests below ~25 s, synchronous CV is not viable and this PRD must be reopened (`docs/API Contract.md` §6.2a).
 
