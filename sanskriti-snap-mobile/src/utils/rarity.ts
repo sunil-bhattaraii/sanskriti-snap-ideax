@@ -1,34 +1,23 @@
-export interface RarityInfo {
-  label: string;
-  color: string;
-  bgColor: string;
-}
+import { COLORS } from '../constants/colors'; // Adjust path if needed
 
-export function getRarityInfo(xpValue: number): RarityInfo {
-  if (xpValue >= 400) {
+export const getRarityInfo = (xpValue: number) => {
+  if (xpValue >= 200) {
     return {
-      label: 'ANCIENT',
-      color: '#B45309',
-      bgColor: '#FEF3C7',
+      label: 'LEGENDARY',
+      color: COLORS.primary,
+      bgColor: 'rgba(212, 175, 55, 0.1)',
     };
-  }
-  if (xpValue >= 250) {
-    return {
-      label: 'EPIC',
-      color: '#7C3AED',
-      bgColor: '#EDE9FE',
-    };
-  }
-  if (xpValue >= 150) {
+  } else if (xpValue >= 150) {
     return {
       label: 'RARE',
-      color: '#2563EB',
-      bgColor: '#DBEAFE',
+      color: '#4299E1',
+      bgColor: 'rgba(66, 153, 225, 0.1)',
+    };
+  } else {
+    return {
+      label: 'COMMON',
+      color: COLORS.tertiary,
+      bgColor: 'rgba(203, 213, 224, 0.3)',
     };
   }
-  return {
-    label: 'COMMON',
-    color: '#059669',
-    bgColor: '#D1FAE5',
-  };
-}
+};

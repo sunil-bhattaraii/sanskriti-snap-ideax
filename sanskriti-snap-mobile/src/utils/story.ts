@@ -1,54 +1,57 @@
-export interface StoryBlock {
+export type StoryBlock = {
   heading: string | null;
+  level: number;
   lines: string[];
-}
+};
 
-export function parseStoryBlocks(story: string | null | undefined): StoryBlock[] {
+const SIGNIFICANCE_HEADING = 'significance';
+
+const trimBlankEdges = (lines: string[]) => {
+  let start = 0;
+  let end = lines.length;
+  while (start < end && lines[start].trim() === '') start++;
+  while (end > start && lines[end - 1].trim() === '') end--;
+  return lines.slice(start, end);
+};
+
+export const parseStoryBlocks = (
+  story: string | null | undefined
+): StoryBlock[] => {
   if (!story) return [];
-  const sections = story.split(/(?=^#{1,3}\s)/m);
+
   const blocks: StoryBlock[] = [];
+  let current: StoryBlock | null = null;
 
-  for (const section of sections) {
-    const trimmed = section.trim();
-    if (!trimmed) continue;
+  const flush = () => {
+    if (!current) return;
+    current.lines = trimBlankEdges(current.lines);
+    blocks.push(current);
+    current = null;
+  };
 
-    const lines = trimmed
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length === 0) continue;
+  for (const rawLine of story.split(/\r?\n/)) {
+    const line = rawLine.trimEnd();
+    const headingMatch = /^(#{1,6})\s+(.+)$/.exec(line);
 
-    let heading: string | null = null;
-    let contentLines = lines;
-
-    if (lines[0].startsWith('#')) {
-      heading = lines[0].replace(/^#{1,3}\s*/, '').trim();
-      contentLines = lines.slice(1);
+    if (headingMatch) {
+      flush();
+      current = {
+        heading: headingMatch[2].trim(),
+        level: headingMatch[1].length,
+        lines: [],
+      };
+    } else if (line.trim() === '') {
+      if (current) current.lines.push('');
+    } else {
+      if (!current) current = { heading: null, level: 0, lines: [] };
+      current.lines.push(line);
     }
-
-    blocks.push({
-      heading,
-      lines: contentLines.length > 0 ? contentLines : [heading || ''],
-    });
   }
-
-  if (blocks.length === 0 && story.trim()) {
-    blocks.push({
-      heading: 'Historical Context',
-      lines: [story.trim()],
-    });
-  }
+  flush();
 
   return blocks;
-}
+};
 
-export function isSignificanceBlock(block: StoryBlock): boolean {
-  if (!block.heading) return false;
-  const h = block.heading.toLowerCase();
-  return (
-    h.includes('significance') ||
-    h.includes('why it matters') ||
-    h.includes('cultural impact') ||
-    h.includes('importance')
-  );
-}
+export const isSignificanceBlock = (block: StoryBlock): boolean =>
+  block.heading !== null &&
+  block.heading.trim().toLowerCase() === SIGNIFICANCE_HEADING;
