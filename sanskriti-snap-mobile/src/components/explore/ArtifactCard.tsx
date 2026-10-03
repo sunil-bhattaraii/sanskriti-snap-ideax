@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router'; // ✅ Added router
 import { COLORS } from '../../constants/colors';
@@ -60,10 +60,10 @@ export default function ArtifactCard({
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.categoryTag}>
-            <Ionicons
-              name={getCategoryIcon(artifact.category)}
-              size={12}
-              color={COLORS.primary}
+            <Image
+              source={getCategoryIcon(artifact.category)}
+              style={styles.categoryIcon}
+              resizeMode="contain"
             />
             <Text style={styles.categoryText}>
               {artifact.category.toUpperCase()}
@@ -136,6 +136,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   categoryTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  categoryIcon: { width: 14, height: 14 },
   categoryText: {
     fontSize: 10,
     fontWeight: '700',

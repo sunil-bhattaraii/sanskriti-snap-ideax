@@ -30,9 +30,11 @@ export default function CachedImage({
     };
   }, [remoteUri]);
 
-  const source = hasLoadError || (!localUri && !remoteUri)
-    ? fallbackSource
-    : { uri: localUri ?? remoteUri };
+  let source: ImageSourcePropType = fallbackSource;
+  const cachedOrRemoteUri = localUri ?? remoteUri;
+  if (!hasLoadError && cachedOrRemoteUri) {
+    source = { uri: cachedOrRemoteUri };
+  }
 
   return (
     <Image

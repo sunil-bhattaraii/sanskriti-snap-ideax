@@ -8,6 +8,8 @@ interface XPBalanceProps {
 }
 
 export default function XPBalance({ balance }: XPBalanceProps) {
+  const formattedBalance = Number.isFinite(balance) ? balance.toLocaleString() : "0";
+
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
@@ -15,7 +17,7 @@ export default function XPBalance({ balance }: XPBalanceProps) {
       </View>
       <View style={styles.textContainer}>
         <Text style={styles.label}>Available Points</Text>
-        <Text style={styles.balance}>{balance.toLocaleString()}</Text>
+        <Text style={styles.balance}>{formattedBalance}</Text>
       </View>
     </View>
   );
