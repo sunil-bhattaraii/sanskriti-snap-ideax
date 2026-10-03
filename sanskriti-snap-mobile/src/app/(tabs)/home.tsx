@@ -8,6 +8,13 @@ import AppHeader from "@/components/AppHeader";
 import FeaturedDiscoveryCard from "@/components/FeaturedDiscoveryCard";
 import { COLORS } from "@/constants/colors";
 import { offlineFirstRequest } from "@/services/cached-api";
+import {
+  cacheFeaturedImages,
+  FEATURED_CACHE_TTL_MS,
+  getFeaturedCacheArea,
+  readFeaturedCache,
+  writeFeaturedCache,
+} from "@/services/featured-cache";
 import { useAuthStore } from "@/store/authstore";
 
 type FeaturedArtifact = { id: string; name: string; description: string; xp: number; imageUrl: string; discoveryCount: number };
@@ -23,16 +30,31 @@ export default function HomeScreen() {
     let mounted = true;
 
     const loadFeaturedArtifacts = async () => {
+      const cached = await readFeaturedCache();
+      if (cached && mounted) {
+        setFeaturedArtifacts(cached.artifacts.slice(0, 3));
+        setFeaturedLoading(false);
+      }
+
       try {
         const permission = await Location.requestForegroundPermissionsAsync();
-        let artifacts: FeaturedArtifact[] = [];
-
         let endpoint = "/artifacts/featured?limit=3";
-        let cacheArea = 'global';
+        let cacheArea = getFeaturedCacheArea();
         if (permission.status === "granted") {
           const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           endpoint = `/artifacts/featured?latitude=${location.coords.latitude}&longitude=${location.coords.longitude}&limit=3`;
-          cacheArea = `nearby-${location.coords.latitude.toFixed(2)}-${location.coords.longitude.toFixed(2)}`;
+          cacheArea = getFeaturedCacheArea(
+            location.coords.latitude,
+            location.coords.longitude,
+          );
+        }
+
+        if (
+          cached &&
+          cached.area === cacheArea &&
+          Date.now() - cached.fetchedAt < FEATURED_CACHE_TTL_MS
+        ) {
+          return;
         }
 
         const response = await offlineFirstRequest<{
@@ -48,7 +70,7 @@ export default function HomeScreen() {
           'featured-artifacts',
           cacheArea,
         ], 60 * 60 * 1000);
-        artifacts = response.items.map((artifact) => ({
+        const artifacts = response.items.map((artifact) => ({
           id: artifact.id,
           name: artifact.name,
           description: artifact.description,
@@ -56,6 +78,8 @@ export default function HomeScreen() {
           imageUrl: artifact.coverImageUrl ?? "",
           discoveryCount: artifact.discoveryCount ?? 0,
         }));
+        await writeFeaturedCache(cacheArea, artifacts);
+        void cacheFeaturedImages(artifacts);
         if (mounted) setFeaturedArtifacts(artifacts.slice(0, 3));
       } catch (error) {
         console.error("Unable to load popular discoveries:", error);
