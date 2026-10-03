@@ -18,18 +18,18 @@ export const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({ item, onNavigate
           style={styles.cardImage}
           resizeMode="cover"
         />
-        
+
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
             <Ionicons name="bookmark" size={20} color="#9C4221" />
           </View>
-          
+
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={14} color="#6B7280" />
             <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
           </View>
-          
+
           <Text style={styles.distanceText}>{item.distance}</Text>
         </View>
       </View>

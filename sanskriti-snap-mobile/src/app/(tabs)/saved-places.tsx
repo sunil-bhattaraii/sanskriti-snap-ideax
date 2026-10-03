@@ -25,7 +25,7 @@ export default function SavedPlacesScreen() {
   return (
     <View style={styles.container}>
       <ScreenHeader title="Saved Places" />
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
