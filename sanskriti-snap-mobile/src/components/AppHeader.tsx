@@ -28,7 +28,7 @@ export default function AppHeader({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuthStore();
-  const displayName = profile?.display_name ?? user?.email ?? 'Guest';
+  const displayName = profile?.displayName ?? user?.email ?? 'Guest';
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
@@ -93,7 +93,7 @@ export default function AppHeader({
         {rightActions}
         <ProfileAvatar
           displayName={displayName}
-          imageUrl={profile?.profile_image_url}
+          imageUrl={profile?.profileImageUrl}
           size={36}
           onPress={() => router.push('/(tabs)/profile')}
         />

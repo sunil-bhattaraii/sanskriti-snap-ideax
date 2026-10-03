@@ -43,6 +43,10 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
       error?.details,
     );
   }
+  if ((options.method ?? 'GET').toUpperCase() !== 'GET') {
+    const { queryClient } = await import('./offline');
+    void queryClient.invalidateQueries();
+  }
   return payload as T;
 }
 

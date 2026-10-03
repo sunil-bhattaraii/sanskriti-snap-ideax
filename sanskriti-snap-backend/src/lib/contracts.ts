@@ -211,7 +211,7 @@ export type UnlockStoryRequest = z.infer<typeof UnlockStoryRequest>;
 export const MediaSignRequest = z
   .object({
     purpose: MediaPurpose,
-    contentType: z.enum(["image/jpeg", "image/png"]),
+    contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   })
   .strict();
 export type MediaSignRequest = z.infer<typeof MediaSignRequest>;

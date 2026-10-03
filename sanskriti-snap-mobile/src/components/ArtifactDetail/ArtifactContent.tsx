@@ -5,6 +5,7 @@ import { ArtifactDetail } from '../../types/artifact';
 import { COLORS } from '../../constants/colors';
 import { parseStoryBlocks, isSignificanceBlock } from '../../utils/story';
 import StoryCard from './StoryCard';
+import MarkdownText from '../MarkdownText';
 
 interface ArtifactContentProps {
   artifact: ArtifactDetail;
@@ -32,11 +33,12 @@ export default function ArtifactContent({
           <Ionicons name="lock-closed" size={24} color={COLORS.tertiary} />
         </View>
         <Text style={styles.lockedTitle}>Story Locked</Text>
+        <MarkdownText
+          text={`${artifact.description.slice(0, 140)}${artifact.description.length > 140 ? '...' : ''}`}
+          style={styles.lockedDescription}
+        />
         <Text style={styles.lockedDescription}>
-          {artifact.description.slice(0, 140)}
-          {artifact.description.length > 140 ? '...' : ''}
-          {'\n\n'}
-          Walk {artifact.story_unlock_radius_m}m closer to this location to
+          Walk {artifact.storyUnlockRadiusMeters}m closer to this location to
           unlock the full hidden history.
         </Text>
       </View>

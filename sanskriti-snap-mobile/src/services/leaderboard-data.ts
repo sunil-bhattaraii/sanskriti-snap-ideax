@@ -3,7 +3,7 @@ import { apiRequest } from './api';
 import { getLevelFromXp, type LeaderboardUser } from '@/types/leaderboard';
 
 const CACHE_KEY = '@sanskriti_leaderboard_v1';
-const CACHE_TTL_MS = 15 * 60 * 1000;
+const CACHE_TTL_MS = 60 * 60 * 1000;
 let warmupPromise: Promise<LeaderboardUser[]> | null = null;
 
 async function fetchLeaderboard(): Promise<LeaderboardUser[]> {

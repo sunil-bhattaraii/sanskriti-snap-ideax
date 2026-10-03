@@ -1,6 +1,6 @@
 import QuestCard from "@/components/Quest/QuestCard";
 import AppHeader from "@/components/AppHeader";
-import { refreshQuestCache, type QuestListItem } from "@/services/progress";
+import { readQuestCache, refreshQuestCache, type QuestListItem } from "@/services/progress";
 import { useAuthStore } from "@/store/authstore";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -24,6 +24,11 @@ export default function QuestsScreen() {
       const load = async () => {
         try {
           setLoading(true);
+          const cached = await readQuestCache(userId);
+          if (cached && mounted) {
+            setQuests(cached);
+            setLoading(false);
+          }
           const items = await refreshQuestCache(userId);
           if (mounted) setQuests(items);
         } catch (loadError) {

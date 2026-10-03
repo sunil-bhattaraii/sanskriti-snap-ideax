@@ -16,6 +16,7 @@ import {
   restoreOfflineQueryCache,
 } from '@/services/offline';
 import { processPendingVerifications } from '@/services/upload-queue';
+import { syncOfflineData } from '@/services/offline-sync';
 import NetInfo from '@react-native-community/netinfo';
 
 function OfflineServices() {
@@ -45,6 +46,31 @@ function AuthenticatedLayout() {
   const setSession = useAuthStore((state) => state.setSession);
   const setSignOut = useAuthStore((state) => state.setSignOut);
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
+
+  useEffect(() => {
+    if (!isSignedIn || !clerkUser?.id) return undefined;
+
+    const syncWhenOnline = () => {
+      void NetInfo.fetch().then((state) => {
+        if (state.isConnected) {
+          void syncOfflineData(clerkUser.id).catch((error) => {
+            console.warn('Unable to sync offline data:', error);
+          });
+        }
+      });
+    };
+
+    syncWhenOnline();
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) syncWhenOnline();
+    });
+    const interval = setInterval(syncWhenOnline, 15 * 60 * 1000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
+  }, [clerkUser?.id, isSignedIn]);
 
   useEffect(() => {
     configureApiTokenProvider(() => getToken());

@@ -9,10 +9,12 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { persistQueryClient } from '@tanstack/query-persist-client-core';
 
+export const CACHE_TTL_MS = 60 * 60 * 1000;
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
+      staleTime: CACHE_TTL_MS,
       gcTime: 24 * 60 * 60 * 1000,
       retry: 1,
       networkMode: 'offlineFirst',
@@ -39,6 +41,24 @@ export function restoreOfflineQueryCache() {
     restorePromise = restored.then(() => undefined);
   }
   return restorePromise;
+}
+
+export async function invalidateOfflineCache() {
+  queryClient.clear();
+  await AsyncStorage.removeItem('@sanskriti_query_cache_v1');
+
+  const keys = await AsyncStorage.getAllKeys();
+  const cacheKeys = keys.filter(
+    (key) =>
+      key.startsWith('@sanskriti_collection_') ||
+      key.startsWith('@sanskriti_quests_') ||
+      key === '@sanskriti_explore_cache_v1' ||
+      key === '@sanskriti_leaderboard_v1' ||
+      key === '@sanskriti_nepal_search_catalog_v1' ||
+      key.startsWith('@sanskriti_artifact_'),
+  );
+  if (cacheKeys.length > 0) await AsyncStorage.multiRemove(cacheKeys);
+  restorePromise = null;
 }
 
 export function configureOfflineNetwork() {

@@ -28,9 +28,11 @@ export default function HomeScreen() {
         let artifacts: FeaturedArtifact[] = [];
 
         let endpoint = "/artifacts/featured?limit=3";
+        let cacheArea = 'global';
         if (permission.status === "granted") {
           const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           endpoint = `/artifacts/featured?latitude=${location.coords.latitude}&longitude=${location.coords.longitude}&limit=3`;
+          cacheArea = `nearby-${location.coords.latitude.toFixed(2)}-${location.coords.longitude.toFixed(2)}`;
         }
 
         const response = await offlineFirstRequest<{
@@ -42,7 +44,10 @@ export default function HomeScreen() {
             coverImageUrl: string | null;
             discoveryCount: number;
           }>;
-        }>(endpoint, ['featured-artifacts', endpoint]);
+        }>(endpoint, [
+          'featured-artifacts',
+          cacheArea,
+        ], 60 * 60 * 1000);
         artifacts = response.items.map((artifact) => ({
           id: artifact.id,
           name: artifact.name,

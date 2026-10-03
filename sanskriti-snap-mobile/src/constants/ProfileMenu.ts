@@ -72,14 +72,6 @@ export const MENU_SECTIONS: {
         label: "Help & Support",
         onPress: () => router.push("/(tabs)/help-support"),
       },
-      {
-        icon: "log-out-outline",
-        iconBgColor: "#FEE2E2",
-        iconColor: "#DC2626",
-        label: "Logout",
-        isDestructive: true,
-        onPress: () => console.log("Logout"), // TODO: Connect to useAuthStore().signOut()
-      },
     ],
   },
 ];

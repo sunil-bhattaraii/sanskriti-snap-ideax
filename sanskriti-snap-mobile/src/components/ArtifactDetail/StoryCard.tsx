@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { COLORS } from '../../constants/colors';
 import type { StoryBlock } from '../../utils/story';
+import MarkdownText from '../MarkdownText';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -56,9 +57,10 @@ export default function StoryCard({ block }: StoryCardProps) {
           </Text>
         </View>
       ) : null}
-      <Text style={[styles.storyText, isFunFact && styles.funFactText]}>
-        {block.lines.join('\n')}
-      </Text>
+      <MarkdownText
+        text={block.lines.join('\n')}
+        style={[styles.storyText, isFunFact && styles.funFactText]}
+      />
     </View>
   );
 }
