@@ -1,4 +1,4 @@
-import { apiRequest } from './api';
+import { ApiRequestError, apiRequest } from './api';
 
 export interface Badge {
   id: string;
@@ -15,11 +15,40 @@ export interface BadgesData {
 }
 
 export async function getBadges(_userId?: string): Promise<BadgesData> {
-  const result = await apiRequest<{ badges: Badge[] } | Badge[]>('/badges');
-  const badges = Array.isArray(result) ? result : result.badges;
-  return {
-    currentCount: badges.filter((badge) => badge.isUnlocked).length,
-    totalCount: badges.length,
-    badges,
-  };
+  try {
+    const result = await apiRequest<{
+      items?: Array<{
+        id: string;
+        name: string;
+        description: string;
+        iconUrl: string | null;
+        unlocked: boolean;
+      }>;
+    } | { badges?: Badge[] } | Badge[]>('/badges');
+
+    const items = Array.isArray(result)
+      ? result
+      : 'items' in result
+        ? result.items ?? []
+        : result.badges ?? [];
+    const badges: Badge[] = items.map((badge) => ({
+      id: badge.id,
+      title: 'name' in badge ? badge.name : badge.title,
+      description: badge.description,
+      imageUrl: 'iconUrl' in badge ? badge.iconUrl : badge.imageUrl,
+      isUnlocked: 'unlocked' in badge ? badge.unlocked : badge.isUnlocked,
+    }));
+
+    return {
+      currentCount: badges.filter((badge) => badge.isUnlocked).length,
+      totalCount: badges.length,
+      badges,
+    };
+  } catch (error) {
+    // A missing badge collection is a valid empty state for new users.
+    if (error instanceof ApiRequestError && error.status === 404) {
+      return { currentCount: 0, totalCount: 0, badges: [] };
+    }
+    throw error;
+  }
 }
