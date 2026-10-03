@@ -7,9 +7,21 @@ import {
   BottomSheetBackdrop,
 } from '@gorhom/bottom-sheet';
 import ArtifactCard from './ArtifactCard';
-import type { ExploreArtifact } from '../../types/artifact';
+import { COLORS } from '../../constants/colors';
 
-export interface BottomSheetProps {
+type ExploreArtifact = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  reference_images: string[];
+  xp_value: number;
+  lat: number;
+  lng: number;
+  distance: number;
+};
+
+interface BottomSheetProps {
   artifacts: ExploreArtifact[];
   selectedArtifact: ExploreArtifact | null;
   onArtifactPress: (artifact: ExploreArtifact) => void;
@@ -102,7 +114,7 @@ export default function BottomSheet({
 
       enableContentPanningGesture={false}
 
-      backdropComponent={(props: any) => (
+      backdropComponent={(props) => (
         <BottomSheetBackdrop
           {...props}
           disappearsOnIndex={-1}
