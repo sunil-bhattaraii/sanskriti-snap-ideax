@@ -72,8 +72,14 @@ const ExploreMapView = forwardRef<MapViewHandle, MapViewProps>(
     }));
 
     // Auto-move camera when an artifact is selected
+    const lastSelectedArtifactId = useRef<string | null>(null);
     useEffect(() => {
-      if (selectedArtifact && cameraRef.current) {
+      if (
+        selectedArtifact &&
+        selectedArtifact.id !== lastSelectedArtifactId.current &&
+        cameraRef.current
+      ) {
+        lastSelectedArtifactId.current = selectedArtifact.id;
         cameraRef.current.flyTo({
           center: [selectedArtifact.lng, selectedArtifact.lat],
           zoom: 15,
@@ -92,8 +98,10 @@ const ExploreMapView = forwardRef<MapViewHandle, MapViewProps>(
       >
         <Camera
           ref={cameraRef}
-          center={userLocation || [85.324, 27.7172]}
-          zoom={13}
+          initialViewState={{
+            center: userLocation || [85.324, 27.7172],
+            zoom: 13,
+          }}
         />
 
         {userLocation && <UserLocationMarker coordinate={userLocation} />}

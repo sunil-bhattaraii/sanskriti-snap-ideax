@@ -164,12 +164,6 @@ export default function ExploreScreen() {
 
   return (
     <View style={styles.container}>
-      <BottomSheet
-        artifacts={artifacts}
-        selectedArtifact={selectedArtifact}
-        onArtifactPress={handleArtifactPress}
-      />
-
       <AppHeader
         overlay
         centerContent={
@@ -194,6 +188,12 @@ export default function ExploreScreen() {
       />
 
       <MapControls onRecenter={handleRecenter} />
+
+      <BottomSheet
+        artifacts={artifacts}
+        selectedArtifact={selectedArtifact}
+        onArtifactPress={handleArtifactPress}
+      />
     </View>
   );
 }

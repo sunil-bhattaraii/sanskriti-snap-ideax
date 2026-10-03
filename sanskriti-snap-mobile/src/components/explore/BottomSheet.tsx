@@ -1,13 +1,11 @@
 import React, { useMemo, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import {
   BottomSheetView,
   BottomSheetModal,
   BottomSheetBackdrop,
 } from '@gorhom/bottom-sheet';
 import ArtifactCard from './ArtifactCard';
-import { COLORS } from '../../constants/colors';
 
 type ExploreArtifact = {
   id: string;
@@ -34,7 +32,7 @@ const ITEM_GAP = 16;
 export default function BottomSheet({
   artifacts,
   selectedArtifact,
-  onArtifactPress
+  onArtifactPress,
 }: BottomSheetProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -136,11 +134,6 @@ export default function BottomSheet({
               {artifacts.length} locations discovered
             </Text>
           </View>
-          <TouchableOpacity>
-            <Text style={styles.viewAllText}>
-              View All <Ionicons name="arrow-forward" size={14} />
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <FlatList
@@ -198,7 +191,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '500',
   },
-  viewAllText: { color: '#8E3B22', fontWeight: '700', fontSize: 12 },
   cardList: {
     paddingRight: 20,
   },

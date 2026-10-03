@@ -10,7 +10,7 @@ interface MapControlsProps {
 
 export default function MapControls({
   onRecenter,
-  bottom = 60,
+  bottom = 140,
 }: MapControlsProps) {
   return (
     <View style={[styles.container, { bottom }]}>
@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
     bottom: 60,
-    zIndex: 30,
+    zIndex: 1,
     gap: 12,
   },
   button: {
