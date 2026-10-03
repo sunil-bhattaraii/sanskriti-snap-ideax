@@ -6,6 +6,7 @@ import { View, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Share,
 import { Href, useRouter, useLocalSearchParams } from "expo-router";
 import { apiRequest } from "../../services/api";
 import { getCachedImageUri } from "../../services/image-cache";
+import { isPlaceSaved, removeSavedPlace, savePlace } from "../../services/saved-places";
 import { COLORS } from "../../constants/colors";
 import { useAuthStore } from "@/store/authstore";
 
@@ -35,12 +36,17 @@ export default function ArtifactDetailScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const artifactCacheKey = `@sanskriti_artifact_${artifactId}`;
 
   useEffect(() => {
     if (artifactId) {
       loadArtifactDetails();
     }
+  }, [artifactId]);
+
+  useEffect(() => {
+    void isPlaceSaved(artifactId).then(setIsSaved);
   }, [artifactId]);
 
   const loadArtifactDetails = async () => {
@@ -147,6 +153,25 @@ export default function ArtifactDetailScreen() {
     }
   };
 
+  const handleToggleSave = async () => {
+    if (!artifact) return;
+    if (isSaved) {
+      await removeSavedPlace(artifact.id);
+      setIsSaved(false);
+      return;
+    }
+    await savePlace({
+      id: artifact.id,
+      name: artifact.name,
+      location: artifact.humanReadableLocation,
+      distance: artifact.distanceMeters == null ? '' : `${(artifact.distanceMeters / 1000).toFixed(1)} km away`,
+      image: artifact.coverImageUrl ?? artifact.referenceImageUrls[0] ?? '',
+      latitude: artifact.latitude,
+      longitude: artifact.longitude,
+    });
+    setIsSaved(true);
+  };
+
   const handleStartNavigation = () => {
     if (isUnlocked) {
       // If already discovered, route to the Explore/Map screen to view it
@@ -197,7 +222,12 @@ export default function ArtifactDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <ArtifactHeader onBack={() => router.back()} onShare={handleShare} />
+      <ArtifactHeader
+        onBack={() => router.back()}
+        onShare={handleShare}
+        isSaved={isSaved}
+        onToggleSave={() => void handleToggleSave()}
+      />
 
       <ScrollView
         style={styles.content}
