@@ -53,10 +53,19 @@ export default function BadgesScreen() {
             </Pressable>
           </View>
         ) : badgesData ? (
-          <>
-            <BadgeProgress data={badgesData} />
-            <BadgeGrid badges={badgesData.badges} />
-          </>
+          badgesData.badges.length === 0 ? (
+            <View style={styles.statusContainer}>
+              <Text style={styles.emptyTitle}>No badges yet</Text>
+              <Text style={styles.emptyText}>
+                Discover artifacts and complete quests to earn badges.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <BadgeProgress data={badgesData} />
+              <BadgeGrid badges={badgesData.badges} />
+            </>
+          )
         ) : null}
       </View>
     </View>
@@ -89,5 +98,18 @@ const styles = StyleSheet.create({
   retryText: {
     color: COLORS.primary,
     fontWeight: '700',
+  },
+  emptyTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyText: {
+    color: COLORS.tertiary,
+    lineHeight: 20,
+    maxWidth: 280,
+    textAlign: 'center',
   },
 });
