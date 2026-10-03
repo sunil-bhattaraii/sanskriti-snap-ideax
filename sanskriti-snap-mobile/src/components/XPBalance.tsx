@@ -14,7 +14,7 @@ export default function XPBalance({ balance }: XPBalanceProps) {
         <Ionicons name="star" size={20} color={COLORS.secondary} />
       </View>
       <View style={styles.textContainer}>
-        <Text style={styles.label}>Available XP</Text>
+        <Text style={styles.label}>Available Points</Text>
         <Text style={styles.balance}>{balance.toLocaleString()}</Text>
       </View>
     </View>

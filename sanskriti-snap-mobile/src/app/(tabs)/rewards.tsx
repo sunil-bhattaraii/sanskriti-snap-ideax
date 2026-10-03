@@ -10,6 +10,46 @@ import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
 import { apiRequest, apiRequestWithIdempotency } from "@/services/api";
 import { useAuthStore } from "@/store/authstore";
 
+const getRewardCategory = (
+  category: string | undefined,
+  title: string,
+  description: string,
+  businessName: string,
+): "Food & Drink" | "Experiences" | "Culture" | "Other" => {
+  const normalized = `${category ?? ""} ${title} ${description} ${businessName}`
+    .toLowerCase()
+    .replace(/[_-]/g, " ");
+
+  if (
+    normalized.includes("food") ||
+    normalized.includes("drink") ||
+    normalized.includes("restaurant") ||
+    normalized.includes("cafe") ||
+    normalized.includes("coffee") ||
+    normalized.includes("meal")
+  ) {
+    return "Food & Drink";
+  }
+  if (
+    normalized.includes("experience") ||
+    normalized.includes("tour") ||
+    normalized.includes("workshop") ||
+    normalized.includes("adventure")
+  ) {
+    return "Experiences";
+  }
+  if (
+    normalized.includes("culture") ||
+    normalized.includes("heritage") ||
+    normalized.includes("museum") ||
+    normalized.includes("temple") ||
+    normalized.includes("art")
+  ) {
+    return "Culture";
+  }
+  return "Other";
+};
+
 export default function RewardsScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
@@ -37,6 +77,8 @@ export default function RewardsScreen() {
         pointCost: number;
         imageUrl: string | null;
         businessName: string;
+        category: "FOOD_AND_DRINK" | "EXPERIENCE" | "CULTURE" | "OTHER";
+        redeemed: boolean;
       }>;
       meta: { pointsBalance: number };
     }>("/rewards")
@@ -49,7 +91,13 @@ export default function RewardsScreen() {
           description: reward.description,
           xpCost: reward.pointCost,
           imageUrl: reward.imageUrl ?? "",
-          category: reward.businessName,
+          category: getRewardCategory(
+            reward.category,
+            reward.title,
+            reward.description,
+            reward.businessName,
+          ),
+          status: reward.redeemed ? "claimed" : "available",
         })));
       })
       .catch((error) => {
@@ -75,6 +123,13 @@ export default function RewardsScreen() {
         body: JSON.stringify({}),
       });
 
+      setRewards((currentRewards) =>
+        currentRewards.map((currentReward) =>
+          currentReward.id === reward.id
+            ? { ...currentReward, status: "claimed" }
+            : currentReward
+        )
+      );
       setUserXP(result.pointsRemaining ?? result.pointsBalance ?? 0);
       await fetchProfile(user.id);
       Alert.alert("Reward claimed", "Your reward is ready to use.", [

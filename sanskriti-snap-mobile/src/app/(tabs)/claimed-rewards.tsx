@@ -12,6 +12,7 @@ const statusColors: Record<ClaimedReward['status'], string> = {
   verified: '#2563EB',
   redeemed: '#059669',
   expired: '#DC2626',
+  confirmed: '#059669',
 };
 
 export default function ClaimedRewardsScreen() {
@@ -56,7 +57,7 @@ export default function ClaimedRewardsScreen() {
       </View>
       <View style={styles.rewardContent}>
         <Text style={styles.partnerName}>{item.partnerName}</Text>
-        <Text style={styles.description}>{item.description}</Text>
+        <Text style={styles.description}>{item.rewardTitle}</Text>
         <Text style={styles.metadata}>
           Claimed {new Date(item.redeemedAt).toLocaleDateString()} · {item.pointsSpent} points
         </Text>

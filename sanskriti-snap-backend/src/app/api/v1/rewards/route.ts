@@ -29,6 +29,7 @@ export async function GET() {
       pointCost: reward.pointRequirement,
       imageUrl: reward.imageUrl ?? null,
       businessName: reward.businessName,
+      category: reward.category,
       affordable: ctx.user.pointsBalance >= reward.pointRequirement,
       redeemed: redeemed.has(String(reward._id)),
     }));

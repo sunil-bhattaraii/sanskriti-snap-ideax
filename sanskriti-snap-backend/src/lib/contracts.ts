@@ -880,6 +880,7 @@ export type RewardItem = {
   pointCost: number;
   imageUrl: string | null;
   businessName: string;
+  category: "FOOD_AND_DRINK" | "EXPERIENCE" | "CULTURE" | "OTHER";
   /** Server-computed. The current client derives this itself. */
   affordable: boolean;
   redeemed: boolean;

@@ -11,6 +11,7 @@ export interface Reward {
   imageUrl: string;
   category: string;
   badge?: "New" | "Popular" | "Limited";
+  status?: "available" | "claimed";
 }
 
 interface RewardCardProps {
@@ -26,6 +27,7 @@ export default function RewardCard({
   canAfford,
   isClaiming = false,
 }: RewardCardProps) {
+  const isClaimed = reward.status === "claimed";
   const getBadgeColor = (badge?: string) => {
     switch (badge) {
       case "New":
@@ -55,7 +57,7 @@ export default function RewardCard({
         </View>
 
         {/* Special Badge */}
-        {reward.badge && (
+        {reward.badge && !isClaimed && (
           <View
             style={[
               styles.specialBadge,
@@ -64,6 +66,15 @@ export default function RewardCard({
           >
             <Text style={styles.specialBadgeText}>{reward.badge}</Text>
           </View>
+        )}
+        {isClaimed && (
+          <>
+            <View pointerEvents="none" style={styles.claimedTint} />
+            <View style={styles.claimedBadge}>
+              <Ionicons name="checkmark-circle" size={14} color={COLORS.white} />
+              <Text style={styles.claimedBadgeText}>Claimed</Text>
+            </View>
+          </>
         )}
       </View>
 
@@ -79,23 +90,30 @@ export default function RewardCard({
 
         {/* XP Cost Button */}
         <TouchableOpacity
-          style={[styles.claimButton, !canAfford && styles.claimButtonDisabled]}
+          style={[
+            styles.claimButton,
+            (!canAfford || isClaimed) && styles.claimButtonDisabled,
+          ]}
           onPress={() => onClaim(reward)}
-          disabled={!canAfford || isClaiming}
+          disabled={!canAfford || isClaiming || isClaimed}
           activeOpacity={0.7}
         >
           <Ionicons
             name="star"
             size={16}
-            color={canAfford ? COLORS.white : COLORS.tertiary}
+            color={canAfford && !isClaimed ? COLORS.white : COLORS.tertiary}
           />
           <Text
             style={[
               styles.claimButtonText,
-              !canAfford && styles.claimButtonTextDisabled,
+              (!canAfford || isClaimed) && styles.claimButtonTextDisabled,
             ]}
           >
-            {isClaiming ? "Claiming..." : `${reward.xpCost.toLocaleString()} points`}
+            {isClaiming
+              ? "Claiming..."
+              : isClaimed
+                ? "Claimed"
+                : `${reward.xpCost.toLocaleString()} points`}
           </Text>
         </TouchableOpacity>
       </View>
@@ -192,5 +210,26 @@ const styles = StyleSheet.create({
   },
   claimButtonTextDisabled: {
     color: COLORS.tertiary,
+  },
+  claimedTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  },
+  claimedBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#6B7280",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  claimedBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.white,
   },
 });
