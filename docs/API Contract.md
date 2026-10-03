@@ -2052,6 +2052,8 @@ users. Not returned by the new contract (§7.6).
 | 4 | CV processing model. | **Synchronous.** No queue, no pending state, no polling. Client re-POSTs the same `Idempotency-Key` on failure. | §6.2, §6.2a |
 | 9 | Artifact status vocabulary. | **`DRAFT | PUBLISHED | ARCHIVED | DISABLED`.** Adopts `Backend TDS.md` §16, keeps `ARCHIVED`. | §11.7 |
 | 12 | Where does `rarity` come from? | **A stored, uploader-set field on `artifacts`.** Not derived from `discoveryCount` or `category`; the client switch is deleted. | §11.5 |
+| 13 | Does an admin user edit write an `AdminAction`? | **Yes — action `USER_UPDATED`.** A user edit mutates identity data, so it needs an audit row written in the same transaction (`DB Schemas.md` 18), joining `USER_SUSPENDED | USER_REACTIVATED` in the `adminActions` action enum. | §9 |
+| 13 | Does an admin user edit write an `AdminAction`? | **Yes — action `USER_UPDATED`.** A user edit mutates identity data, so it needs an audit row written in the same transaction (`DB Schemas.md` 18), joining `USER_SUSPENDED | USER_REACTIVATED` in the `adminActions` action enum. | §9 |
 
 ### Propagation status
 

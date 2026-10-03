@@ -17,6 +17,7 @@ import { ContributionStatus, PaginationQuery } from "@/lib/contracts";
 import { connect } from "@/lib/db";
 import { toAdminContribution } from "@/lib/dto";
 import { toErrorResponse } from "@/lib/errors";
+import { parseQuery } from "@/lib/http";
 import { Contribution } from "@/models/community";
 import { User } from "@/models/user";
 
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     await connect();
 
     const url = request.nextUrl;
-    const { limit, cursor, status } = ContributionQuery.parse({
+    const { limit, cursor, status } = parseQuery(ContributionQuery, {
       limit: url.searchParams.get("limit") ?? undefined,
       cursor: url.searchParams.get("cursor") ?? undefined,
       status: url.searchParams.get("status") ?? undefined,

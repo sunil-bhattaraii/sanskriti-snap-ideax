@@ -17,13 +17,12 @@ import { Types } from "mongoose";
 import { slugify } from "@/lib/admin";
 import { requireAdmin } from "@/lib/auth";
 import {
-  ArtifactStatus,
   CreateArtifactRequest,
   AdminArtifactQuery,
 } from "@/lib/contracts";
 import { connect, withTransaction } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
-import { readJsonBody } from "@/lib/http";
+import { parseQuery, readJsonBody } from "@/lib/http";
 import { Artifact } from "@/models/artifact";
 import { AdminAction } from "@/models/community";
 
@@ -33,7 +32,7 @@ export async function GET(request: NextRequest) {
     await connect();
 
     const url = request.nextUrl;
-    const { limit, cursor, status, q } = AdminArtifactQuery.parse({
+    const { limit, cursor, status, q } = parseQuery(AdminArtifactQuery, {
       limit: url.searchParams.get("limit") ?? undefined,
       cursor: url.searchParams.get("cursor") ?? undefined,
       status: url.searchParams.get("status") ?? undefined,

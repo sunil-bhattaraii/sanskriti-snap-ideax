@@ -19,7 +19,7 @@ import { requireAdmin } from "@/lib/auth";
 import { CreateQuestRequest, PaginationQuery } from "@/lib/contracts";
 import { connect, withTransaction } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
-import { readJsonBody } from "@/lib/http";
+import { parseQuery, readJsonBody } from "@/lib/http";
 import { Artifact } from "@/models/artifact";
 import { AdminAction } from "@/models/community";
 import { Quest } from "@/models/gamification";
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     await requireAdmin();
     await connect();
 
-    const { limit, cursor } = PaginationQuery.parse({
+    const { limit, cursor } = parseQuery(PaginationQuery, {
       limit: request.nextUrl.searchParams.get("limit") ?? undefined,
       cursor: request.nextUrl.searchParams.get("cursor") ?? undefined,
     });

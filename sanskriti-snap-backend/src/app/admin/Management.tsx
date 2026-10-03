@@ -140,7 +140,24 @@ type Dialog =
       item: Row;
     };
 
-type ApiPayload<T> = { error?: { message?: string } } & T;
+type ApiPayload<T> = {
+  error?: { message?: string; details?: { fields?: Record<string, string[]> } };
+} & T;
+
+/**
+ * Server errors name the offending fields in `details.fields`. Surfacing them
+ * matters for query failures — "Invalid query parameters" alone does not tell
+ * the admin that their search term is too long.
+ */
+function errorMessage(error: ApiPayload<unknown>["error"]): string {
+  const base = error?.message ?? "The request could not be completed.";
+  const fields = error?.details?.fields;
+  if (!fields) return base;
+  const parts = Object.entries(fields).map(([field, messages]) =>
+    `${field}: ${messages.join(", ")}`,
+  );
+  return parts.length > 0 ? `${base} (${parts.join("; ")})` : base;
+}
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -153,7 +170,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const payload = (await response.json()) as ApiPayload<T>;
   if (!response.ok) {
-    throw new Error(payload.error?.message ?? "The request could not be completed.");
+    throw new Error(errorMessage(payload.error));
   }
   return payload;
 }
@@ -368,7 +385,7 @@ export default function Management({ section }: { section: Section }) {
       let items: Row[] = [];
       if (section === "Places") {
         const result = await api<{ items: ArtifactRow[] }>(
-          `/api/v1/admin/artifacts?limit=100${}`,
+          "/api/v1/admin/artifacts?limit=100" + search,
         );
         items = result.items;
         setArtifacts(result.items);
@@ -549,7 +566,7 @@ export default function Management({ section }: { section: Section }) {
         body,
       );
     } else if (dialog.kind === "user") {
-      await mutate(`/api/v1/admin/users/${dialog.item.id}`, "PATCH", {
+      await mutate(`/api/v1/admin/users/${(dialog.item as UserRow).id}`, "PATCH", {
         displayName: text(form, "displayName"),
         role: text(form, "role"),
       });
@@ -672,6 +689,7 @@ export default function Management({ section }: { section: Section }) {
               <input
                 aria-label={`Search ${section.toLowerCase()}`}
                 placeholder={`Search ${section.toLowerCase()}...`}
+                maxLength={60}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
