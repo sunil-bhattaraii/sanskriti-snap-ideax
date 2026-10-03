@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { configureApiTokenProvider } from '@/services/api';
+import { refreshProximityGeofences } from '@/services/proximity-notifications';
 import { useAuthStore } from '@/store/authstore';
 
 function AuthenticatedLayout() {
@@ -46,6 +47,20 @@ function AuthenticatedLayout() {
       });
     }
   }, [clerkUser, fetchProfile, isLoaded, setSession]);
+
+  const profileNotificationsEnabled = useAuthStore(
+    (state) => state.profile?.notifications.enabled ?? false,
+  );
+  const profileNotificationRadius = useAuthStore(
+    (state) => state.profile?.notifications.radiusMeters ?? 100,
+  );
+
+  useEffect(() => {
+    if (!isSignedIn || !profileNotificationsEnabled) return;
+    void refreshProximityGeofences(true, profileNotificationRadius).catch((error) => {
+      console.warn('Unable to refresh proximity notifications:', error);
+    });
+  }, [isSignedIn, profileNotificationsEnabled, profileNotificationRadius]);
 
   useEffect(() => {
     if (!isLoaded) return;

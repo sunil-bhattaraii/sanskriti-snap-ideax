@@ -19,6 +19,17 @@ export const parseStoryBlocks = (
 ): StoryBlock[] => {
   if (!story) return [];
 
+  const normalizedStory = story
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<h([1-6])[^>]*>(.*?)<\/h\1>/gi, (_, level, heading) =>
+      `${'#'.repeat(Number(level))} ${heading.replace(/<[^>]+>/g, '')}\n`,
+    )
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>');
   const blocks: StoryBlock[] = [];
   let current: StoryBlock | null = null;
 
@@ -29,7 +40,7 @@ export const parseStoryBlocks = (
     current = null;
   };
 
-  for (const rawLine of story.split(/\r?\n/)) {
+  for (const rawLine of normalizedStory.split(/\r?\n/)) {
     const line = rawLine.trimEnd();
     const headingMatch = /^(#{1,6})\s+(.+)$/.exec(line);
 

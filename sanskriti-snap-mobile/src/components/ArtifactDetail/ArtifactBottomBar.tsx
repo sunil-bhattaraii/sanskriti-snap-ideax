@@ -22,10 +22,10 @@ export default function ArtifactBottomBar({ storyUnlocked, isDiscovered = false,
       {showSnapButton ? (
         // Two-button layout when snap is required
         <View style={styles.twoButtonRow}>
-          {/* <TouchableOpacity style={styles.snapButton} onPress={onTakeSnap} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.snapButton} onPress={onTakeSnap} activeOpacity={0.8}>
             <Ionicons name="camera" size={20} color={COLORS.white} />
             <Text style={styles.snapButtonText}>Take Snap</Text>
-          </TouchableOpacity> */}
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.navigateButton} onPress={onNavigate} activeOpacity={0.8}>
             <Ionicons name="navigate" size={20} color={COLORS.primary} />

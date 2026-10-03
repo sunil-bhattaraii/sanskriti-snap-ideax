@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Href, useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { backendClient } from '../../../services/backendClient';
+import { apiRequest } from '../../../services/api';
 import { COLORS } from '../../../constants/colors';
 import { useAuthStore } from '../../../store/authstore';
 
@@ -74,14 +74,21 @@ export default function SnapConfirmScreen() {
 
   const loadArtifactDetails = async () => {
     try {
-      const { data, error } = await backendClient
-        .from('artifacts')
-        .select('id, name, category, reference_images, xp_value')
-        .eq('id', artifactId)
-        .single();
-
-      if (error) throw error;
-      setArtifact(data);
+      const data = await apiRequest<{
+        id: string;
+        name: string;
+        category: string;
+        coverImageUrl: string | null;
+        referenceImageUrls: string[];
+        xpReward: number;
+      }>(`/artifacts/${encodeURIComponent(artifactId)}`);
+      setArtifact({
+        id: data.id,
+        name: data.name,
+        category: data.category,
+        reference_images: data.referenceImageUrls ?? (data.coverImageUrl ? [data.coverImageUrl] : []),
+        xp_value: data.xpReward,
+      });
     } catch (error) {
       console.error('Error loading artifact:', error);
     } finally {
