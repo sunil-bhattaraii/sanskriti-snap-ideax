@@ -64,11 +64,15 @@ export default function BottomSheet({
           (artifact) => artifact.id === selectedArtifact.id
         );
         if (index !== -1 && flatListRef.current) {
-          flatListRef.current.scrollToIndex({
-            index,
-            animated: true,
-            viewPosition: 0.5, // Centers the card
-          });
+          if (index === 0) {
+            flatListRef.current.scrollToOffset({ offset: 0, animated: false });
+          } else {
+            flatListRef.current.scrollToIndex({
+              index,
+              animated: true,
+              viewPosition: 0,
+            });
+          }
         }
       }, 300);
 
@@ -89,7 +93,7 @@ export default function BottomSheet({
         flatListRef.current.scrollToIndex({
           index: info.index,
           animated: true,
-          viewPosition: 0.5,
+          viewPosition: 0,
         });
       }
     });
