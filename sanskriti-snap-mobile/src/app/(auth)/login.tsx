@@ -40,7 +40,9 @@ export default function LoginScreen() {
     try {
       await signIn.create({ identifier: email, password });
       if (signIn.status !== 'complete' || !signIn.createdSessionId) {
-        throw new Error('Additional sign-in verification is required.');
+        throw new Error(
+          `Sign-in is incomplete (${signIn.status}). Complete the required verification in Clerk and try again.`,
+        );
       }
       await setActive({ session: signIn.createdSessionId });
       router.replace('/(tabs)/home');

@@ -6,7 +6,9 @@ export function useGoogleSignIn() {
 
   return async () => {
     const { createdSessionId, setActive } = await startOAuthFlow({
-      redirectUrl: Linking.createURL('/'),
+      redirectUrl: Linking.createURL('/oauth-native-callback', {
+        scheme: 'sanskritisnap',
+      }),
     });
     if (!createdSessionId) {
       throw new Error('Google sign-in did not create a session.');

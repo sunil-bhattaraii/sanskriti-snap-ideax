@@ -56,7 +56,9 @@ export default function RegisterScreen() {
         firstName: fullName,
       });
       if (signUp.status !== 'complete' || !signUp.createdSessionId) {
-        throw new Error('Check your email to verify your account, then sign in.');
+        throw new Error(
+          `Registration is incomplete (${signUp.status}). Check your email for the required verification, then try again.`,
+        );
       }
       await setActive({ session: signUp.createdSessionId });
 
