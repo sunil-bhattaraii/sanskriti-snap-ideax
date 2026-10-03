@@ -47,16 +47,10 @@ export default function ArtifactCard({
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
-        {artifact.reference_images?.length > 0 ? (
-          <CachedImage
-            remoteUri={artifact.reference_images[0]}
-            style={styles.image}
-          />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Ionicons name="image-outline" size={32} color="#9CA3AF" />
-          </View>
-        )}
+        <CachedImage
+          remoteUri={artifact.reference_images?.[0]}
+          style={styles.image}
+        />
         <View style={styles.xpBadge}>
           <Ionicons name="flash" size={10} color="#D4AF37" />
           <Text style={styles.xpText}>{artifact.xp_value} XP</Text>

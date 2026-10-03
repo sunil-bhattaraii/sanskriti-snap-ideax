@@ -12,17 +12,11 @@ interface ArtifactHeroProps {
 export default function ArtifactHero({ images, location }: ArtifactHeroProps) {
   return (
     <View style={styles.heroContainer}>
-      {images?.length > 0 ? (
-        <CachedImage
-          remoteUri={images[0]}
-          style={styles.heroImage}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={[styles.heroImage, styles.heroPlaceholder]}>
-          <Ionicons name="image-outline" size={64} color={COLORS.tertiary} />
-        </View>
-      )}
+      <CachedImage
+        remoteUri={images?.[0]}
+        style={styles.heroImage}
+        resizeMode="cover"
+      />
       <View style={styles.gradientOverlay} />
       <View style={styles.locationBadge}>
         <Ionicons name="location" size={16} color={COLORS.primary} />
