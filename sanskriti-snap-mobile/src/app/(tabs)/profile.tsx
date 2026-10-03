@@ -4,11 +4,11 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import ProfileAvatar from '@/components/ProfileAvatar';
@@ -27,11 +27,11 @@ export default function ProfileScreen() {
   const isAuthenticated = !!user;
 
   const displayName =
-    profile?.display_name ?? (isAuthenticated ? user.email : 'Guest User');
+    profile?.displayName ?? (isAuthenticated ? user.fullName || user.email : 'Guest User');
   const username = profile?.username ?? 'guest';
-  const imageUrl = profile?.profile_image_url ?? null;
-  const lifetimeXp = profile?.lifetime_xp ?? 0;
-  const rewardPoints = profile?.reward_points ?? 0;
+  const imageUrl = profile?.profileImageUrl ?? null;
+  const lifetimeXp = profile?.lifetimeXp ?? 0;
+  const rewardPoints = profile?.pointsBalance ?? 0;
   const [questCount, setQuestCount] = useState(0);
 
   useEffect(() => {
@@ -45,7 +45,11 @@ export default function ProfileScreen() {
       .select('quest_id')
       .eq('user_id', user.id)
       .not('completed_at', 'is', null)
-      .then(({ data }) => setQuestCount(data?.length ?? 0));
+      .then(({ data }) => setQuestCount(data?.length ?? 0))
+      .catch((error) => {
+        console.warn('Unable to load completed quests:', error);
+        setQuestCount(0);
+      });
   }, [user]);
 
   // Dynamic level calculation based on XP (e.g., 1000 XP = Level 2)

@@ -12,6 +12,7 @@ type Query = {
   filters: Record<string, string>;
   method?: string;
   body?: unknown;
+  single?: boolean;
 };
 
 const endpointFor = (table: string) => {
@@ -36,7 +37,9 @@ function queryBuilder(query: Query): any {
       return builder;
     },
     neq: () => builder,
+    not: () => builder,
     in: () => builder,
+    limit: () => builder,
     update: (body: unknown) => {
       query.method = 'PATCH';
       query.body = body;
@@ -47,14 +50,29 @@ function queryBuilder(query: Query): any {
       query.body = body;
       return builder;
     },
-    maybeSingle: () => builder,
-    single: () => builder,
+    maybeSingle: () => {
+      query.single = true;
+      return builder;
+    },
+    single: () => {
+      query.single = true;
+      return builder;
+    },
     then: (resolve: (value: unknown) => void, reject?: (error: unknown) => void) =>
       apiRequest(endpointFor(query.table), {
         method: query.method ?? 'GET',
         body: query.body ? JSON.stringify(query.body) : undefined,
       })
-        .then((data) => resolve({ data, error: null }))
+        .then((data) => {
+          const normalized =
+            query.table === 'artifacts' && !Array.isArray(data)
+              ? (data as { artifacts?: unknown[] }).artifacts ?? data
+              : data;
+          resolve({
+            data: query.single && Array.isArray(normalized) ? normalized[0] : normalized,
+            error: null,
+          });
+        })
         .catch((error) => {
           if (reject) reject(error);
           else resolve({ data: null, error });
@@ -67,9 +85,13 @@ export const backendClient = {
   from: (table: string) => queryBuilder({ table, filters: {} }),
   rpc: async (name: string, args?: Record<string, unknown>) => {
     if (name === 'nearby_artifacts') {
-      const data = await apiRequest('/artifacts/nearby', {
+      const response = await apiRequest<{ artifacts?: unknown[] } | unknown[]>(
+        '/artifacts/nearby',
+        {
         method: 'GET',
-      });
+        },
+      );
+      const data = Array.isArray(response) ? response : response.artifacts ?? [];
       return { data, error: null };
     }
     if (name === 'redeem_reward') {

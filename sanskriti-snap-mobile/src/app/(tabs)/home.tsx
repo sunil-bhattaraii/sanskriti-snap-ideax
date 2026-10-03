@@ -1,5 +1,6 @@
 import React from "react";
-import { ActivityIndicator, View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar } from "react-native";
+import { ActivityIndicator, View, Text, ScrollView, StyleSheet, TouchableOpacity, StatusBar } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Location from "expo-location";
@@ -15,7 +16,7 @@ export default function HomeScreen() {
   const [featuredArtifacts, setFeaturedArtifacts] = React.useState<FeaturedArtifact[]>([]);
   const [featuredLoading, setFeaturedLoading] = React.useState(true);
   const { user, profile } = useAuthStore();
-  const displayName = profile?.display_name ?? user?.user_metadata?.display_name ?? user?.email?.split("@")[0];
+  const displayName = profile?.displayName ?? user?.fullName ?? user?.email?.split("@")[0];
   const firstName = displayName?.trim().split(/\s+/)[0] || "Explorer";
 
   React.useEffect(() => {
@@ -40,8 +41,8 @@ export default function HomeScreen() {
             name: artifact.name,
             description: artifact.description,
             xp: artifact.xp_value,
-            imageUrl: artifact.reference_images[0] ?? "",
-            discoveryCount: artifact.discovery_count,
+            imageUrl: artifact.referenceImageUrls?.[0] ?? artifact.coverImageUrl ?? "",
+            discoveryCount: artifact.discoveryCount ?? 0,
           }));
         } else {
           const { data, error } = await backendClient
@@ -57,8 +58,8 @@ export default function HomeScreen() {
             name: artifact.name,
             description: artifact.description,
             xp: artifact.xp_value,
-            imageUrl: artifact.reference_images[0] ?? "",
-            discoveryCount: artifact.discovery_count,
+            imageUrl: artifact.referenceImageUrls?.[0] ?? artifact.coverImageUrl ?? "",
+            discoveryCount: artifact.discoveryCount ?? 0,
           }));
         }
 
