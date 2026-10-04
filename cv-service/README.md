@@ -1,7 +1,6 @@
 # Sanskriti Snap CV Service
 
-Internal FastAPI service: image -> CLIP embedding, and top-K-mean similarity against one
-artifact's stored reference vectors. It never decides VERIFIED/FLAGGED; Next.js does.
+Internal FastAPI service for image verification support. It creates CLIP embeddings and compares a submitted image with stored artifact reference vectors. It returns similarity evidence; the Next.js backend owns the final `VERIFIED`/`FLAGGED` decision.
 
 ## Layout
 
@@ -10,14 +9,38 @@ app/       service modules (relative imports; run as `app.main:app`)
 tests/     pytest suite; imports `app.*`
 ```
 
-## Run
+## Setup and run
+
+Requirements: Python 3.11+ and a PyTorch installation suitable for the host CPU/GPU.
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt        # install torch for your hardware first if you want GPU
-cp .env.example .env                   # set CV_SERVICE_SECRET (same value as the backend)
+# Windows
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+# macOS/Linux
+python -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+Copy-Item .env.example .env            # Windows
+# cp .env.example .env                 # macOS/Linux
+```
+
+Set `CV_SERVICE_SECRET` to the same value used by the backend. Configure MongoDB and Cloudinary values in `.env` when using stored references or Cloudinary public IDs.
+
+Start the service:
+
+```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
-Backend `.env`: `CV_SERVICE_URL=http://127.0.0.1:8000`, `CV_SERVICE_SECRET=<same secret>`.
+
+Backend configuration:
+
+```env
+CV_SERVICE_URL=http://127.0.0.1:8000
+CV_SERVICE_SECRET=<same secret>
+```
 
 ## Try it
 ```bash
@@ -29,8 +52,9 @@ curl -X POST localhost:8000/compare -H "Authorization: Bearer $CV_SERVICE_SECRET
 ```
 
 ## Test
+
 ```bash
-pytest   # no torch / Mongo needed; model, fetch and DB are faked
+pytest
 ```
 
 ## Behaviour notes

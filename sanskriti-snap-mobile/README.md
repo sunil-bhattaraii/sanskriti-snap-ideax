@@ -1,56 +1,56 @@
-# Welcome to your Expo app 👋
+# Sanskriti Snap Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo/React Native client for discovering cultural artifacts, viewing maps, navigating to locations, submitting evidence, tracking XP, and redeeming rewards.
 
-## Get started
+## Requirements
 
-1. Install dependencies
+- Node.js 20+
+- npm
+- Expo CLI through `npx`
+- Android Studio or an iOS development environment for native builds
+- A reachable Sanskriti Snap backend
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Create a `.env` file in this directory and configure:
 
-### Other setup steps
+```env
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+EXPO_PUBLIC_API_URL=http://<reachable-backend-host>:3000
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+The backend URL must be reachable from the phone or emulator. A localhost or private LAN URL will not work in a released APK unless the device can access that network.
 
-## Learn more
+## Run and build
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npx expo start       # development server
+npm run android      # local Android native build
+npm run ios          # local iOS native build
+npm run web          # web client
+npm run typecheck    # TypeScript validation
+npm run lint         # Expo ESLint
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+EAS profiles are defined in `eas.json`:
 
-## Join the community
+```bash
+npx eas build --platform android --profile preview
+npx eas build --platform android --profile production
+```
 
-Join our community of developers creating universal apps.
+Ensure the two `EXPO_PUBLIC_*` values are configured in the EAS environment used for the build. The app displays a startup diagnostic screen when required configuration is missing or invalid.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Structure
+
+- `src/app` — Expo Router screens and route layouts
+- `src/components` — reusable UI
+- `src/services` — API, caching, offline queue, media, and location integrations
+- `src/store` — client state
+- `assets` — bundled icons and images
+
+The mobile app communicates with the Next.js backend through REST and Clerk authentication. It does not connect directly to MongoDB or the CV service.

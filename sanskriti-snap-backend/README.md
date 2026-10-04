@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sanskriti Snap Backend
 
-## Getting Started
+The backend is a Next.js App Router application that exposes the Sanskriti Snap REST API. It handles Clerk authentication, user and artifact workflows, discoveries, rewards, media signing, and MongoDB persistence.
 
-First, run the development server:
+## Requirements
+
+- Node.js 20+
+- MongoDB/MongoDB Atlas
+- Clerk application
+- Cloudinary account
+- Optional: running CV service for image verification
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy `.env.example` to `.env` (PowerShell: `Copy-Item .env.example .env`) and set the values before starting the server.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Set the values in `.env` before starting the server. The required configuration includes:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `MONGODB_URI`
+- `CLERK_SECRET_KEY`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
 
-## Learn More
+For CV verification, also configure `CV_SERVICE_URL` and `CV_SERVICE_SECRET`. The secret must match the CV service.
 
-To learn more about Next.js, take a look at the following resources:
+## Run and validate
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev       # development server at http://localhost:3000
+npm run build     # production build
+npm start         # serve the production build
+npm run lint      # ESLint
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The API is served under `/api/v1`. Authenticated endpoints expect a Clerk bearer token:
 
-## Deploy on Vercel
+```http
+Authorization: Bearer <clerk-session-token>
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/app/api/v1` — REST route handlers
+- `src/lib` — environment validation, database, auth, Cloudinary, CV, and shared contracts
+- `src/models` — Mongoose models
+- `scripts` — maintenance and data scripts
+
+The backend owns authorization and DTO shaping. Do not expose raw MongoDB documents or move database access into the mobile app.
