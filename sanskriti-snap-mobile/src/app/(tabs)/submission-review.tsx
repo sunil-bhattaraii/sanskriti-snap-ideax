@@ -14,6 +14,9 @@ import ScreenHeader from '../../components/ScreenHeader';
 import RewardPreview from '../../components/submission/RewardPreview';
 import SubmissionInfo from '../../components/submission/SubmissionInfo';
 import SubmissionPreview from '../../components/submission/SubmissionPreview';
+import SubmitProgress, {
+  SubmitStage,
+} from '../../components/submission/SubmitProgress';
 import VerificationNotice from '../../components/submission/VerificationNotice';
 import type { SubmissionData } from '../../constants/data/mockSubmission';
 import { ApiRequestError, apiRequest, apiRequestWithIdempotency } from '@/services/api';
@@ -48,6 +51,7 @@ export default function SubmissionReviewScreen() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [submitStage, setSubmitStage] = useState<SubmitStage>('uploading');
   const [formData, setFormData] = useState<ReviewData | null>(null);
 
   // Fetch artifact details on mount
@@ -180,6 +184,7 @@ export default function SubmissionReviewScreen() {
                 return String(payload.public_id);
               };
 
+              setSubmitStage('uploading');
               const verificationImagePublicId = await uploadMedia(
                 formData.primaryImageUri,
                 'VERIFICATION_SNAP',
@@ -190,6 +195,7 @@ export default function SubmissionReviewScreen() {
                 })),
               );
 
+              setSubmitStage('verifying');
               const result = await apiRequestWithIdempotency<{
                 attemptId: string;
                 status: 'VERIFIED' | 'FLAGGED';
@@ -213,6 +219,8 @@ export default function SubmissionReviewScreen() {
                   privateNote: formData.privateNote || null,
                 }),
               });
+
+              setSubmitStage('submitting');
 
               if (result.discoveryId) {
                 await fetchProfile(user.id);
@@ -275,6 +283,7 @@ export default function SubmissionReviewScreen() {
               );
             } finally {
               setSubmitting(false);
+              setSubmitStage('uploading');
             }
           },
         },
@@ -358,12 +367,14 @@ export default function SubmissionReviewScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
+        {submitting && <SubmitProgress stage={submitStage} />}
         <Button
           title={submitting ? 'Submitting...' : 'Submit Visit'}
           onPress={handleSubmit}
           variant="primary"
           size="lg"
           fullWidth
+          disabled={submitting}
         />
       </View>
     </View>
