@@ -484,7 +484,11 @@ export default function NavigationScreen() {
           style={styles.map}
           mapStyle="https://tiles.openfreemap.org/styles/liberty"
         >
-          <Camera ref={cameraRef} center={userLocation} zoom={15} />
+          <Camera
+            ref={cameraRef}
+            initialViewState={{ center: userLocation, zoom: 15 }}
+            center={userLocation}
+          />
 
           <UserLocationMarker coordinate={userLocation} />
 
