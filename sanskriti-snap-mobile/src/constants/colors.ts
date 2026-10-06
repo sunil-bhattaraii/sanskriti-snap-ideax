@@ -9,4 +9,5 @@ export const COLORS = {
   disabled: "#D6D0CC",
   placeholder: "#A0AEC0",
   error: "#E53E3E",
+  success: "#16A34A",
 };
