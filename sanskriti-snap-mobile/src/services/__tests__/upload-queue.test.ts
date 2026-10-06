@@ -23,7 +23,8 @@ jest.mock('../api', () => mockApi);
 const mockLocalPhotos = { updateLocalPhotoStatus: jest.fn() };
 jest.mock('../local-photos', () => mockLocalPhotos);
 
-const { enqueueVerification, processPendingVerifications } = jest.requireActual('../upload-queue');
+const { enqueueVerification, processPendingVerifications, listPendingUploads, getPendingUploadCount } =
+  jest.requireActual('../upload-queue');
 
 const QUEUE_KEY = '@sanskriti_verification_upload_queue_v1';
 
@@ -79,7 +80,7 @@ describe('enqueueVerification', () => {
     expect(queued[0].createdAt).toEqual(expect.any(String));
   });
 
-  it('appends rather than overwriting earlier queue items', async () => {
+it('appends rather than overwriting earlier queue items', async () => {
     await enqueueVerification(input);
     await enqueueVerification({ ...input, localPhotoId: 'lp-2', imageUri: 'file:///two.jpg' });
     const raw = JSON.parse((await AsyncStorage.getItem(QUEUE_KEY)) as string);
@@ -88,6 +89,20 @@ describe('enqueueVerification', () => {
       'file:///photo.jpg',
       'file:///two.jpg',
     ]);
+  });
+});
+
+describe('pending upload visibility', () => {
+  it('lists every unfinished submission', async () => {
+    await enqueueVerification(input);
+    await enqueueVerification({ ...input, localPhotoId: 'lp-2', imageUri: 'file:///two.jpg' });
+    const queued = await listPendingUploads();
+    expect(queued).toHaveLength(2);
+    expect(getPendingUploadCount()).resolves.toBe(2);
+  });
+
+it('reports zero when nothing is queued', async () => {
+    expect(await getPendingUploadCount()).toBe(0);
   });
 });
 
