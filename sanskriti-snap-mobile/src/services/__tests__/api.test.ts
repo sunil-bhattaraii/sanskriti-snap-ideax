@@ -1,4 +1,9 @@
 import { apiRequest, ApiRequestError, configureApiTokenProvider } from '../api';
+import { queryClient } from '../offline';
+
+jest.mock('../offline', () => ({
+  queryClient: { invalidateQueries: jest.fn() },
+}));
 
 describe('apiRequest timeouts and abort', () => {
   const originalFetch = globalThis.fetch;
@@ -86,5 +91,34 @@ describe('apiRequest timeouts and abort', () => {
       code: 'NOT_FOUND',
       status: 404,
     });
+  });
+
+  it('invalidates only cache keys a mutation touches', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue(response({ ok: true }));
+    const invalidateQueries = queryClient.invalidateQueries as jest.Mock;
+
+    await apiRequest('/verification-attempts/abc123/recheck', {
+      method: 'POST',
+      body: '{}',
+      timeoutMs: 5_000,
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['offline', 'featured-artifacts'] });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['offline', 'artifact'] });
+
+    invalidateQueries.mockClear();
+    await apiRequest('/artifacts/def456/unlock-story', {
+      method: 'POST',
+      body: '{}',
+      timeoutMs: 5_000,
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['offline', 'artifact', 'def456'] });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['offline', 'featured-artifacts'] });
+  });
+
+  it('does not invalidate any cache on reads', async () => {
+    queryClient.invalidateQueries = jest.fn();
+    globalThis.fetch = jest.fn().mockResolvedValue(response({ ok: true }));
+    await apiRequest('/artifacts/featured', { timeoutMs: 5_000 });
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 });
