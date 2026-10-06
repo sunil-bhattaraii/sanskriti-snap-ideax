@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from "react-native";
 import * as Location from "expo-location";
 import { Button } from "../../components/Button";
@@ -29,72 +29,81 @@ export default function VerificationPendingScreen() {
   const { submissionId } = useLocalSearchParams<{ submissionId: string }>();
   const [verificationData, setVerificationData] = useState<VerificationData | null>(null);
   const [checking, setChecking] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // 1. Fetch real data to populate the UI (from kushal/integration)
-  useEffect(() => {
+  // Load the attempt once and on demand via "Check status". No background
+  // polling: a FLAGGED attempt awaits an admin review that can take far longer
+  // than a poll loop should run, so it would just burn battery and requests.
+  const loadAttempt = useCallback(async () => {
     if (!submissionId) return;
 
-    const fetchData = async () => {
-      try {
-        const attempt = await apiRequest<{
-          id: string;
-          status: string;
-          artifactId: string;
-          artifact: {
-            name: string;
-            humanReadableLocation: string;
-            xpReward: number;
-          };
-          verificationImageUrl: string | null;
-          gps: { status: string; distanceMeters: number | null; requiredMeters: number };
-          cv: { status: string } | null;
-          discoveryId: string | null;
-        }>(`/verification-attempts/${encodeURIComponent(submissionId)}`);
+    try {
+      const attempt = await apiRequest<{
+        id: string;
+        status: string;
+        artifactId: string;
+        artifact: {
+          name: string;
+          humanReadableLocation: string;
+          xpReward: number;
+        };
+        verificationImageUrl: string | null;
+        gps: { status: string; distanceMeters: number | null; requiredMeters: number };
+        cv: { status: string } | null;
+        discoveryId: string | null;
+      }>(`/verification-attempts/${encodeURIComponent(submissionId)}`);
 
-        if (attempt.discoveryId) {
-            router.replace({
-              pathname: "/(tabs)/discovery-success",
-              params: { discoveryId: attempt.discoveryId },
-            });
-          return;
-        }
-
-        if (attempt.status === "REJECTED") {
+      if (attempt.discoveryId) {
           router.replace({
-            pathname: "/(tabs)/verification-failed",
-            params: {
-              artifactId: attempt.artifactId,
-              distanceRemaining: String(Math.max(
-                0,
-                Math.round((attempt.gps?.distanceMeters ?? 0) - (attempt.gps?.requiredMeters ?? 0)),
-              )),
-            },
+            pathname: "/(tabs)/discovery-success",
+            params: { discoveryId: attempt.discoveryId },
           });
-          return;
-        }
-
-        setVerificationData({
-          submittedImageUri: attempt.verificationImageUrl ?? "",
-          placeName: attempt.artifact.name,
-          location: attempt.artifact.humanReadableLocation,
-          verificationStatus: attempt.status === "FLAGGED" ? "analyzing" : "verifying",
-          progressPercentage: attempt.status === "FLAGGED" ? 80 : 45,
-          currentStep: attempt.status === "FLAGGED"
-            ? "Awaiting verification review"
-            : "Verification complete",
-          estimatedTime: "Review usually takes 2-3 minutes",
-          xpReward: attempt.artifact.xpReward,
-          artifactId: attempt.artifactId,
-        });
-      } catch (error) {
-        console.error("Error fetching verification data:", error);
+        return;
       }
-    };
 
-    void fetchData();
-    const interval = setInterval(() => void fetchData(), 5000);
-    return () => clearInterval(interval);
+      if (attempt.status === "REJECTED") {
+        router.replace({
+          pathname: "/(tabs)/verification-failed",
+          params: {
+            artifactId: attempt.artifactId,
+            distanceRemaining: String(Math.max(
+              0,
+              Math.round((attempt.gps?.distanceMeters ?? 0) - (attempt.gps?.requiredMeters ?? 0)),
+            )),
+          },
+        });
+        return;
+      }
+
+      setVerificationData({
+        submittedImageUri: attempt.verificationImageUrl ?? "",
+        placeName: attempt.artifact.name,
+        location: attempt.artifact.humanReadableLocation,
+        verificationStatus: attempt.status === "FLAGGED" ? "analyzing" : "verifying",
+        progressPercentage: attempt.status === "FLAGGED" ? 80 : 45,
+        currentStep: attempt.status === "FLAGGED"
+          ? "Awaiting verification review"
+          : "Verification complete",
+        estimatedTime: "Review usually takes 2-3 minutes",
+        xpReward: attempt.artifact.xpReward,
+        artifactId: attempt.artifactId,
+      });
+    } catch (error) {
+      console.error("Error fetching verification data:", error);
+    }
   }, [router, submissionId]);
+
+  useEffect(() => {
+    void (async () => {
+      await loadAttempt();
+    })();
+  }, [loadAttempt]);
+
+  const handleCheckStatus = async () => {
+    setRefreshing(true);
+    await loadAttempt();
+    setRefreshing(false);
+  };
 
   // 2. Manual retry/verification logic (from main)
   const handleRetryVerification = async () => {
@@ -207,12 +216,20 @@ export default function VerificationPendingScreen() {
 
       <View style={styles.footer}>
         <Button
+          title={refreshing ? "Checking..." : "Check status"}
+          onPress={() => void handleCheckStatus()}
+          variant="outline"
+          size="lg"
+          fullWidth
+          disabled={checking || refreshing}
+        />
+        <Button
           title={checking ? "Checking..." : "Retry Verification"}
           onPress={handleRetryVerification}
           variant="primary"
           size="lg"
           fullWidth
-          disabled={checking}
+          disabled={checking || refreshing}
           leftIcon={
             <Ionicons name="refresh-outline" size={20} color={COLORS.white} />
           }
@@ -245,5 +262,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",
     paddingBottom: 30, // Safe area
+    gap: 10,
   },
 });
