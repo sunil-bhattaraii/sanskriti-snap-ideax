@@ -34,14 +34,14 @@ Run: `npm test` (alias `vitest run`).
 
 Framework: **Jest 29 + jest-expo ~57.0.5** + `@testing-library/react-native ^14.0.1`. jest config in `package.json` (preset `jest-expo`, `testMatch **/__tests__/**/*.test.ts?(x)`, `moduleNameMapper @/ → src/`).
 
-Status: **logic suites green (see below); component suites green.**
+Status: **logic suites green (see below); component suites green.** Offline pass added banner/search/quest/cache/badges suites — 141 total (10 logic + 19 component).
 
 ## Final gate
 
 | Package | jest/vitest | tsc | lint |
 |---|---|---|---|
 | `sanskriti-snap-backend` | 185 / 185 pass (6 files: errors 21, http 9, contracts 65, cv-contract 35, dto 34, cloudinary 21) | exit 0 | 0 errors, 21 pre-existing warnings |
-| `sanskriti-snap-mobile` | 120 / 120 pass (25 suites: 7 logic + 18 component) | exit 0 | **0 errors** (53 pre-existing warnings) |
+| `sanskriti-snap-mobile` | 141 / 141 pass (29 suites: 10 logic + 19 component) | exit 0 | **0 errors** (43 warnings) |
 
 Mobile lint note: eslint + eslint-config-expo were missing before this pass (expo lint could not run at all); now installed, and **all 27 lint errors it surfaced are fixed** (react-hooks/set-state-in-effect, react-hooks/immutability, react-hooks/purity, react/no-unescaped-entities). None were in test files. Fixes (behavior-preserving):
 
@@ -52,9 +52,22 @@ Mobile lint note: eslint + eslint-config-expo were missing before this pass (exp
 - **`use-color-scheme.web.ts` hydration flag** replaced with `useSyncExternalStore` (server snapshot `false` → `'light'`, client snapshot `true` → real scheme) — the endorsed replacement for the setState-in-effect hydration pattern.
 - 5× `react/no-unescaped-entities`: escaped apostrophes in `verification-failed.tsx`, `SuccessHeader.tsx`, `VerificationInfo.tsx`, `confirm.tsx`, and header string in `navigation.tsx`.
 
-Verified end-of-pass: `npm run lint` → **0 errors / 53 warnings**, `npx tsc --noEmit` → exit 0, `jest` → **120 / 120 pass** (25 suites). Warning count per changed file is at or below the git baseline (no new warnings introduced).
+Verified end-of-pass: `npm run lint` → **0 errors / 43 warnings**, `npx tsc --noEmit` → exit 0, `jest` → **141 / 141 pass** (29 suites). Warning count per changed file is at or below the git baseline (no new warnings introduced).
 
-### Logic (utils + services) — 70 tests passing
+### Offline pass (this iteration)
+
+All seven audited weak points + the offline dead-ends are fixed client-side only (backend AGENTS.md scopes offline-sync out):
+
+1. **Offline banner** — `OfflineBanner` mounts above every screen (moved inside the safe-area provider) via NetInfo; shows `Offline - showing saved data` + `· N queued uploads` from `getPendingUploadCount()` while disconnected.
+2. **Collection no longer clobbers its cache** — `collection.tsx` only surfaces an error when nothing is cached (fetch success clears stale errors).
+3. **Nepal search offline fallback** — every successful search/nearby result is merged into `@sanskriti_nepal_search_catalog_v1` (capped 200); on failure, search filters the cached catalog, nearby distance-filters + sorts it.
+4. **Quest details cached** — `fetchQuestDetails` persists under `@sanskriti_quest_details_<id>`; `quest/[id]` seeds from cache then refreshes, erroring only with no cache.
+5. **Pending-uploads visibility** — Settings shows a count, taps "Pending Uploads" to run `processPendingVerifications` eagerly with success/partial alerts (banner count also reflects queue state).
+6. **Quest images via `CachedImage`** — `QuestHero` + `QuestArtifactItem` now render through the image cache instead of plain `Image` (offline-safe, auto-prewarm).
+7. **Image cache eviction** — after each successful download, oldest-first maintenance keeps the cache under 200 files / 200 MB (`enforceImageCacheLimit`, strict `shift()` loop, concurrent-run guard).
+8. **Dead-ends** — `badges.ts` persists + serves the last-known badge list offline; snap `confirm.tsx` falls back to the artifact detail cache.
+
+### Logic (utils + services) — 87 tests passing
 
 | File | Cases | What's covered |
 |---|---|---|
@@ -62,9 +75,12 @@ Verified end-of-pass: `npm run lint` → **0 errors / 53 warnings**, `npx tsc --
 | `src/utils/__tests__/story.test.ts` | 17 | Story/description helpers (trimming, truncation, markdown-safe plain text) |
 | `src/utils/__tests__/rarity.test.ts` | 12 | Rarity ordering/labels/colors |
 | `src/services/__tests__/offline.test.ts` | 6 | Cache invalidation for all keys incl. `@sanskriti_featured_artifacts_v1` (regression for comma bug), write-on-collect, read-through |
-| `src/services/__tests__/upload-queue.test.ts` | 8 | Enqueue (pending + idempotency key), durable persist, append-not-overwrite, success path (upload + remove from queue), gallery cap 6, stranded `uploading` → reprocess, failure → `failed` + retryCount, concurrent `processing` guard |
-| `src/services/__tests__/progress.test.ts` | 10 | Collection/quest/quest-details mapping + coercion, cache keys per user/guest, invalidate/warm/refresh cache |
+| `src/services/__tests__/upload-queue.test.ts` | 10 | Enqueue (pending + idempotency key), durable persist, append-not-overwrite, success path (upload + remove from queue), gallery cap 6, stranded `uploading` → reprocess, failure → `failed` + retryCount, concurrent `processing` guard, `listPendingUploads`/`getPendingUploadCount` |
+| `src/services/__tests__/progress.test.ts` | 12 | Collection/quest/quest-details mapping + coercion, cache keys per user/guest, invalidate/warm/refresh cache, quest-details cache write + read-before-fetch |
 | `src/services/__tests__/api.test.ts` | 7 | Payload/token plumbing, 30s default + 60s long timeouts (`REQUEST_TIMEOUT`), caller-abort passthrough, `ApiRequestError` mapping, path-scoped cache invalidation (submissions → featured + artifact, unlock-story → that artifact only, reads → no invalidation) |
+| `src/services/__tests__/nepal-search.test.ts` | 5 | Search caches results for later offline fallback, offline query matches cached catalog, non-matching query → `[]`, nearby falls back to distance-filtered cache, results merge (no clobber) |
+| `src/services/__tests__/image-cache.test.ts` | 4 | Downloads once + reuses URI, evicts oldest past 200-file / 200 MB caps, failed download → no cache/prune, `null` URL → `null` |
+| `src/services/__tests__/badges.test.ts` | 4 | Backend shape → counts + cache write, 404 → empty state, network failure → cached badges, network failure with no cache → rethrows |
 
 Notes:
 - Service tests use an in-memory AsyncStorage double: `src/test/memory-async-storage.ts` (must `AsyncStorage.clear()` per test — shared store otherwise leaks across tests).
@@ -72,7 +88,7 @@ Notes:
 - `progress.ts` mapping is the guard against `item.id of undefined` for sparse server rows.
 - `api.test.ts` mocks `../offline` (its `queryClient.invalidateQueries`) so POST invalidation side-effects are asserted without a real react-query store.
 
-### Components — 50 tests passing
+### Components — 54 tests passing
 
 RNTL v14 gotcha: `render()` **returns a Promise** → all component tests must `await render(...)` and `await fireEvent.press(...)`. Matchers imported via `jest-setup.js` (`setupFilesAfterEnv` → `@testing-library/react-native/dist/matchers/extend-expect`).
 
@@ -96,6 +112,7 @@ RNTL v14 gotcha: `render()` **returns a Promise** → all component tests must `
 | `src/components/__tests__/bottom-nav.test.tsx` | 3 | Tab labels, router.push on tap (expo-router mocked), no push on mount |
 | `src/components/__tests__/submit-progress.test.tsx` | 2 | All three step labels, completed steps marked done + active step highlighted |
 | `src/components/__tests__/community-bar.test.tsx` | 2 | Fetches snaps (mock), renders thumbnails + View all; renders nothing when the artifact has no snaps |
+| `src/components/__tests__/offline-banner.test.tsx` | 4 | Renders nothing while online; offline copy while disconnected; queued-upload count (`· 2 queued uploads`); hides again when connectivity returns (NetInfo `__emit` helper) |
 
 BottomNav test mocks `expo-router` (`useRouter`/`usePathname`) — the center FAB's label is outside its touchable, so tap tests use the "Home" tab.
 
