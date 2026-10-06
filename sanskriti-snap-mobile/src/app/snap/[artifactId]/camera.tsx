@@ -15,6 +15,7 @@ import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { COLORS } from '../../../constants/colors';
 import { persistCapturedPhoto } from '@/services/local-photos';
+import { resizeForUpload } from '@/utils/resize-image';
 
 const { width, height } = Dimensions.get('window');
 
@@ -179,7 +180,12 @@ export default function SnapCameraScreen() {
           return;
         }
 
-        const persistentPhoto = await persistCapturedPhoto(photo.uri, artifactId);
+        const resizedUri = await resizeForUpload(
+          photo.uri,
+          photo.width,
+          photo.height
+        );
+        const persistentPhoto = await persistCapturedPhoto(resizedUri, artifactId);
 
         // Navigate to review screen with all necessary verification data
         router.push({
