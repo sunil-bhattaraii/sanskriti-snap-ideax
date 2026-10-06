@@ -32,11 +32,25 @@ def _check_url(url: str) -> None:
         raise CvError("INVALID_IMAGE", 400, "Image host is not allowed")
 
 
+def cap_cloudinary_fetch(url: str, transform: str) -> str:
+    """Insert a delivery transformation before the public id of a Cloudinary
+    URL so the download is 224px-worth of pixels, not the original photo."""
+    if not transform:
+        return url
+    marker = "/image/upload/"
+    if url.startswith("https://res.cloudinary.com/") and marker in url:
+        head, tail = url.split(marker, 1)
+        if "/" in tail and not tail.startswith(f"{transform}/"):
+            return f"{head}{marker}{transform}/{tail}"
+    return url
+
+
 def fetch_image(image: str) -> Image.Image:
     """Download (size-capped, no redirects) and decode to an upright RGB image."""
     s = get_settings()
     url = resolve_image_url(image)
     _check_url(url)
+    url = cap_cloudinary_fetch(url, s.cv_cloudinary_fetch_transform)
 
     buf = bytearray()
     try:
