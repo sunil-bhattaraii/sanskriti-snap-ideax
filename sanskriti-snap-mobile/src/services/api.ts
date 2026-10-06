@@ -1,3 +1,5 @@
+import { queryClient } from './offline';
+
 export type TokenProvider = () => Promise<string | null>;
 
 let tokenProvider: TokenProvider = async () => null;
@@ -76,6 +78,25 @@ export async function fetchWithTimeout(
   }
 }
 
+/**
+ * Which react-query cache keys a mutation invalidates. The offline cache only
+ * holds a handful of lists (featured feed, artifact details), so we refresh
+ * exactly what the mutation touches instead of clearing everything on every
+ * POST/PATCH (which forced unrelated screens to refetch after any tiny action).
+ */
+function mutationInvalidationKeys(path: string): string[][] {
+  if (path.startsWith('/verification-attempts')) {
+    // A submission changes XP, collection, quests and story status, so the
+    // home feed and any cached artifact detail are stale.
+    return [['featured-artifacts'], ['artifact']];
+  }
+  const unlock = /^\/artifacts\/([^/]+)\/unlock-story$/.exec(path);
+  if (unlock) {
+    return [['artifact', decodeURIComponent(unlock[1])]];
+  }
+  return [];
+}
+
 export async function apiRequest<T>(
   path: string,
   options: ApiRequestOptions = {},
@@ -99,8 +120,9 @@ export async function apiRequest<T>(
     );
   }
   if ((options.method ?? 'GET').toUpperCase() !== 'GET') {
-    const { queryClient } = await import('./offline');
-    void queryClient.invalidateQueries();
+    for (const key of mutationInvalidationKeys(path)) {
+      void queryClient.invalidateQueries({ queryKey: ['offline', ...key] });
+    }
   }
   return payload as T;
 }
