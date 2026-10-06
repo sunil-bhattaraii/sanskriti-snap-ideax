@@ -10,16 +10,16 @@ Last updated: 2026-10-06
 
 Framework: **Vitest 3** (vitest@5 conflicts with `@types/node@^20`). Config in `vitest.config.ts` (alias `@` → `src`, `setupFiles: ./vitest.setup.ts`).
 
-Status: **184 tests passing, 6 files. `tsc --noEmit` clean, `npm run lint` 0 errors (21 pre-existing warnings), `next build` OK.**
+Status: **185 tests passing, 6 files. `tsc --noEmit` clean, `npm run lint` 0 errors (21 pre-existing warnings), `next build` OK.**
 
 | File | Cases | What's covered |
 |---|---|---|
 | `src/lib/__tests__/errors.test.ts` | 21 | Error hierarchy/messages, unknown-code coercion, HTTP status per error code (incl. `ACCOUNT_SUSPENDED` → 403) |
 | `src/lib/__tests__/http.test.ts` | 9 | JSON + form parsing, auth header plumbing, error surfacing |
 | `src/lib/__tests__/contracts.test.ts` | 65 | Mongoose schemas vs OpenAPI contract: fields, types, required, defaults, enum members, references, uniqueness, strict mode → `unrecognized_keys` rejection |
-| `src/lib/__tests__/cv-contract.test.ts` | 34 | OpenAPI contract ↔ CV client: param/enum/DC(finding)-type alignment, zod mask shape, `topK` required on compare, default `topK` constant |
+| `src/lib/__tests__/cv-contract.test.ts` | 35 | OpenAPI contract ↔ CV client: param/enum/DC(finding)-type alignment, zod mask shape, `topK` required on compare, default `topK` constant |
 | `src/lib/__tests__/dto.test.ts` | 34 | Zod DTOs: validation boundaries, coercion, error paths, guards (e.g. 2 imgs → 2nd rejected, <3 chars rejected), tag enum acceptance/rejection |
-| `src/lib/__tests__/cloudinary.test.ts` | 20 | Config validation (empty/malformed/valid), signed upload URL params, signature algorithm, `signUpload` stability within same second, `destroyAsset` (lazy config, calls `uploader.destroy` with the publicId, never throws) |
+| `src/lib/__tests__/cloudinary.test.ts` | 21 | Config validation (empty/malformed/valid), signed upload URL params, signature algorithm, `signUpload` stability within same second, `destroyAsset` (lazy config, calls `uploader.destroy` with the publicId, never throws), `imageUrl` default read transform (`w_800,q_auto,f_auto`) + `null` opt-out for originals |
 
 Notes:
 - `src/lib/env.ts` caches at module scope → tests that mutate env use `vi.resetModules()` + dynamic import.
@@ -40,8 +40,8 @@ Status: **logic suites green (see below); component suites green.**
 
 | Package | jest/vitest | tsc | lint |
 |---|---|---|---|
-| `sanskriti-snap-backend` | 184 / 184 pass (6 files: errors 21, http 9, contracts 65, cv-contract 34, dto 34, cloudinary 20) | exit 0 | 0 errors, 21 pre-existing warnings |
-| `sanskriti-snap-mobile` | 113 / 113 pass (24 suites: 6 logic + 18 component) | exit 0 | **0 errors** (53 pre-existing warnings) |
+| `sanskriti-snap-backend` | 185 / 185 pass (6 files: errors 21, http 9, contracts 65, cv-contract 35, dto 34, cloudinary 21) | exit 0 | 0 errors, 21 pre-existing warnings |
+| `sanskriti-snap-mobile` | 120 / 120 pass (25 suites: 7 logic + 18 component) | exit 0 | **0 errors** (53 pre-existing warnings) |
 
 Mobile lint note: eslint + eslint-config-expo were missing before this pass (expo lint could not run at all); now installed, and **all 27 lint errors it surfaced are fixed** (react-hooks/set-state-in-effect, react-hooks/immutability, react-hooks/purity, react/no-unescaped-entities). None were in test files. Fixes (behavior-preserving):
 
@@ -52,9 +52,9 @@ Mobile lint note: eslint + eslint-config-expo were missing before this pass (exp
 - **`use-color-scheme.web.ts` hydration flag** replaced with `useSyncExternalStore` (server snapshot `false` → `'light'`, client snapshot `true` → real scheme) — the endorsed replacement for the setState-in-effect hydration pattern.
 - 5× `react/no-unescaped-entities`: escaped apostrophes in `verification-failed.tsx`, `SuccessHeader.tsx`, `VerificationInfo.tsx`, `confirm.tsx`, and header string in `navigation.tsx`.
 
-Verified end-of-pass: `npm run lint` → **0 errors / 53 warnings**, `npx tsc --noEmit` → exit 0, `jest` → **113 / 113 pass** (24 suites). Warning count per changed file is at or below the git baseline (no new warnings introduced).
+Verified end-of-pass: `npm run lint` → **0 errors / 53 warnings**, `npx tsc --noEmit` → exit 0, `jest` → **120 / 120 pass** (25 suites). Warning count per changed file is at or below the git baseline (no new warnings introduced).
 
-### Logic (utils + services) — 63 tests passing
+### Logic (utils + services) — 70 tests passing
 
 | File | Cases | What's covered |
 |---|---|---|
@@ -64,11 +64,13 @@ Verified end-of-pass: `npm run lint` → **0 errors / 53 warnings**, `npx tsc --
 | `src/services/__tests__/offline.test.ts` | 6 | Cache invalidation for all keys incl. `@sanskriti_featured_artifacts_v1` (regression for comma bug), write-on-collect, read-through |
 | `src/services/__tests__/upload-queue.test.ts` | 8 | Enqueue (pending + idempotency key), durable persist, append-not-overwrite, success path (upload + remove from queue), gallery cap 6, stranded `uploading` → reprocess, failure → `failed` + retryCount, concurrent `processing` guard |
 | `src/services/__tests__/progress.test.ts` | 10 | Collection/quest/quest-details mapping + coercion, cache keys per user/guest, invalidate/warm/refresh cache |
+| `src/services/__tests__/api.test.ts` | 7 | Payload/token plumbing, 30s default + 60s long timeouts (`REQUEST_TIMEOUT`), caller-abort passthrough, `ApiRequestError` mapping, path-scoped cache invalidation (submissions → featured + artifact, unlock-story → that artifact only, reads → no invalidation) |
 
 Notes:
 - Service tests use an in-memory AsyncStorage double: `src/test/memory-async-storage.ts` (must `AsyncStorage.clear()` per test — shared store otherwise leaks across tests).
 - `upload-queue` needs a `global.fetch` mock (blob from `file://` + Cloudinary response `{ public_id }`) and 4 `apiRequest` calls for 1 snap + 2 gallery + 1 attempt on success.
 - `progress.ts` mapping is the guard against `item.id of undefined` for sparse server rows.
+- `api.test.ts` mocks `../offline` (its `queryClient.invalidateQueries`) so POST invalidation side-effects are asserted without a real react-query store.
 
 ### Components — 50 tests passing
 
@@ -114,4 +116,4 @@ Status: **22 tests passing.**
 | `tests/test_images.py` | `fetch_image` URL handling and the Cloudinary fetch transform (`cap_cloudinary_fetch` — insert `w_800,q_auto,f_auto`, no double-apply, non-Cloudinary URLs untouched, disabled transform) |
 
 Run: `& .\.venv\Scripts\python.exe -m pytest -q`
-⚠️ The default run trips `test_requires_auth`: the local gitignored `cv-service/.env` sets `ENVIRONMENT=test`, turning auth off. Run with `$env:ENVIRONMENT='production'; & .\.venv\Scripts\python.exe -m pytest -q` for a clean 22, and flip that file to `production` before deploying.
+⚠️ The default run trips `test_requires_auth`: the local gitignored `cv-service/.env` sets `ENVIRONMENT=test`, turning auth off. Run with `$env:ENVIRONMENT='production'; & .\.venv\Scripts\python.exe -m pytest -q` for a clean 22. `cv-service/.env` is currently set to `production` (flipped during the latency pass) — it must stay `production` before deploying, or `test_requires_auth` will fail on CI.
