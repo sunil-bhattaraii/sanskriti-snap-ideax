@@ -61,35 +61,17 @@ export async function GET(request: NextRequest) {
     let currentUserMeta: { rank: number; lifetimeXp: number } | null = null;
 
     if (ctx?.user) {
-      const userRank = await User.aggregate([
-        { $match: { accountStatus: "ACTIVE" } },
-        { $sort: { lifetimeXp: -1 } },
-        {
-          $setWindowFields: {
-            partitionBy: null,
-            sortBy: { lifetimeXp: -1 },
-            output: { rank: { $rank: {} } },
-          },
-        },
-        {
-          $match: {
-            _id: ctx.user._id,
-          },
-        },
-        {
-          $project: {
-            rank: 1,
-            lifetimeXp: 1,
-          },
-        },
-      ]);
-
-      if (userRank.length > 0) {
-        currentUserMeta = {
-          rank: userRank[0].rank,
-          lifetimeXp: userRank[0].lifetimeXp,
-        };
-      }
+      // Ranks count competitions: ties share the rank of the worst member, so a
+      // user's rank is 1 + (# ACTIVE users with strictly more XP). An indexed
+      // count replaces a second full-collection $setWindowFields pass.
+      const aboveCount = await User.countDocuments({
+        accountStatus: "ACTIVE",
+        lifetimeXp: { $gt: ctx.user.lifetimeXp },
+      });
+      currentUserMeta = {
+        rank: aboveCount + 1,
+        lifetimeXp: ctx.user.lifetimeXp,
+      };
     }
 
     // Count total ACTIVE users for metadata
