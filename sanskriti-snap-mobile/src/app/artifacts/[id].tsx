@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import * as Location from "expo-location";
-import { View, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Share, Alert, TouchableOpacity, Text } from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Share, Alert, TouchableOpacity, Text, AppState } from "react-native";
 import { Href, useRouter, useLocalSearchParams } from "expo-router";
 import { apiRequest } from "../../services/api";
 import { getCachedImageUri } from "../../services/image-cache";
@@ -136,19 +136,50 @@ export default function ArtifactDetailScreen() {
 
   useEffect(() => {
     if (!artifact || artifact.storyUnlocked) return;
-    void (async () => {
-      await unlockStoryAtCurrentLocation();
-    })().catch((error) => {
-      console.warn('Unable to check story unlock distance:', error);
-    });
-    const interval = setInterval(() => {
-      void (async () => {
+
+    // Unlock is proximity, so poll while the story is still locked — but keep
+    // it event-friendly: 60s cadence, at most 10 polls (~10 minutes), never
+    // overlapping a request, and only while the app is foregrounded. The next
+    // visit to this screen, or a pull-to-refresh, re-checks too.
+    const UNLOCK_POLL_INTERVAL_MS = 60_000;
+    const MAX_UNLOCK_POLLS = 10;
+
+    let inFlight = false;
+    let polls = 0;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const poll = async () => {
+      if (inFlight) return;
+      polls += 1;
+      inFlight = true;
+      try {
         await unlockStoryAtCurrentLocation();
-      })().catch((error) => {
-        console.warn('Unable to check story unlock distance:', error);
-      });
-    }, 15_000);
-    return () => clearInterval(interval);
+      } catch (error) {
+        console.warn("Unable to check story unlock distance:", error);
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const run = () => {
+      if (AppState.currentState !== "active") return;
+      void poll();
+      if (interval && polls >= MAX_UNLOCK_POLLS) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    interval = setInterval(run, UNLOCK_POLL_INTERVAL_MS);
+    const appStateSub = AppState.addEventListener("change", (next) => {
+      if (next === "active") run();
+    });
+
+    run();
+    return () => {
+      if (interval) clearInterval(interval);
+      appStateSub.remove();
+    };
   }, [artifact, artifactId]);
 
   const handleShare = async () => {
