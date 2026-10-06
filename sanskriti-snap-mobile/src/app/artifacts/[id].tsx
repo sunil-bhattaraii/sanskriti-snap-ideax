@@ -19,6 +19,7 @@ import ArtifactHero from "../../components/ArtifactDetail/ArtifactHero";
 import ArtifactInfo from "../../components/ArtifactDetail/ArtifactInfo";
 import ArtifactContent from "../../components/ArtifactDetail/ArtifactContent";
 import ArtifactBottomBar from "../../components/ArtifactDetail/ArtifactBottomBar";
+import CommunityBar from "../../components/ArtifactDetail/CommunityBar";
 
 export default function ArtifactDetailScreen() {
   const router = useRouter();
@@ -244,6 +245,14 @@ export default function ArtifactDetailScreen() {
 
         <View style={styles.mainContentContainer}>
           <ArtifactInfo artifact={artifact} distance={discoveryStatus.distanceToArtifact} isUnlocked={isUnlocked} />
+          {isUnlocked ? (
+            <CommunityBar
+              artifactId={artifactId}
+              onOpenGallery={() =>
+                router.push(`/community/${encodeURIComponent(artifactId)}` as Href)
+              }
+            />
+          ) : null}
           <ArtifactContent artifact={artifact} isUnlocked={isUnlocked} />
         </View>
       </ScrollView>
