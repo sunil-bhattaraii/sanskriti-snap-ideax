@@ -36,8 +36,14 @@ npm run lint        # eslint
 npx tsc --noEmit    # typecheck — no npm script exists for this
 ```
 
-There is no test suite yet. `tsc --noEmit` and `npm run lint` are the only
-automated gates; run both before calling work done.
+Tests run under **Vitest** (`npm test`); suites live in `src/lib/__tests__/` and mock Mongo/Cloudinary-coupled modules. The gates are
+`tsc --noEmit`, `npm run lint`, and `npm test` — run all three before calling
+work done.
+
+**Test-driven development is the workflow.** For any new or changed behaviour
+(validation boundaries, DTO mapping, pure helpers, error codes), write a
+failing test first, then implement until it passes. A behaviour with no test is
+not done.
 
 ## Next.js 16 — do not assume
 
@@ -184,10 +190,7 @@ admin artifact management and XP adjustment.
 
 Deliberately absent — do not build unprompted:
 
-- CV service integration (contract and client exist; service lands next block).
-  Until it is configured, CV-enabled artifacts are **refused**, never silently
-  auto-passed.
-- Community snaps, reports, moderation, contributions.
+- Reports, moderation, contributions.
 - `businesses` collection — `businessName` is inlined on the reward.
 - Rate limiting, caching, notification delivery, offline sync, external
   navigation handoff, semantic search, duplicate-image or anti-spoof detection.
@@ -195,9 +198,10 @@ Deliberately absent — do not build unprompted:
 - `ARCHIVED` / `DISABLED` transitions. The enum exists; only `DRAFT` and
   `PUBLISHED` are wired.
 
-Because every artifact is GPS-only right now, nothing produces `FLAGGED`, so the
-admin review path is unreachable until CV lands. Keep the routes thin rather
-than deleting them.
+CV is integrated and synchronous: `/compare` runs inside the verification-attempt
+transaction, and community snaps (GET/POST `/api/v1/artifacts/[id]/snaps`) are
+live — the mobile community bar reads them. Keep the admin review routes thin
+rather than deleting them.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

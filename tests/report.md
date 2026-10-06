@@ -10,7 +10,7 @@ Last updated: 2026-10-06
 
 Framework: **Vitest 3** (vitest@5 conflicts with `@types/node@^20`). Config in `vitest.config.ts` (alias `@` → `src`, `setupFiles: ./vitest.setup.ts`).
 
-Status: **182 tests passing, 6 files. `tsc --noEmit` clean, `npm run lint` 0 errors (21 pre-existing warnings), `next build` OK.**
+Status: **184 tests passing, 6 files. `tsc --noEmit` clean, `npm run lint` 0 errors (21 pre-existing warnings), `next build` OK.**
 
 | File | Cases | What's covered |
 |---|---|---|
@@ -19,7 +19,7 @@ Status: **182 tests passing, 6 files. `tsc --noEmit` clean, `npm run lint` 0 err
 | `src/lib/__tests__/contracts.test.ts` | 65 | Mongoose schemas vs OpenAPI contract: fields, types, required, defaults, enum members, references, uniqueness, strict mode → `unrecognized_keys` rejection |
 | `src/lib/__tests__/cv-contract.test.ts` | 34 | OpenAPI contract ↔ CV client: param/enum/DC(finding)-type alignment, zod mask shape, `topK` required on compare, default `topK` constant |
 | `src/lib/__tests__/dto.test.ts` | 34 | Zod DTOs: validation boundaries, coercion, error paths, guards (e.g. 2 imgs → 2nd rejected, <3 chars rejected), tag enum acceptance/rejection |
-| `src/lib/__tests__/cloudinary.test.ts` | 18 | Config validation (empty/malformed/valid), signed upload URL params, signature algorithm, `signUpload` stability within same second |
+| `src/lib/__tests__/cloudinary.test.ts` | 20 | Config validation (empty/malformed/valid), signed upload URL params, signature algorithm, `signUpload` stability within same second, `destroyAsset` (lazy config, calls `uploader.destroy` with the publicId, never throws) |
 
 Notes:
 - `src/lib/env.ts` caches at module scope → tests that mutate env use `vi.resetModules()` + dynamic import.
@@ -40,8 +40,8 @@ Status: **logic suites green (see below); component suites green.**
 
 | Package | jest/vitest | tsc | lint |
 |---|---|---|---|
-| `sanskriti-snap-backend` | 182 / 182 pass (6 files: errors 21, http 9, contracts 65, cv-contract 34, dto 34, cloudinary 18) | exit 0 | 0 errors, 21 pre-existing warnings |
-| `sanskriti-snap-mobile` | 109 / 109 pass (22 suites: 6 logic + 16 component) | exit 0 | **0 errors** (53 pre-existing warnings) |
+| `sanskriti-snap-backend` | 184 / 184 pass (6 files: errors 21, http 9, contracts 65, cv-contract 34, dto 34, cloudinary 20) | exit 0 | 0 errors, 21 pre-existing warnings |
+| `sanskriti-snap-mobile` | 113 / 113 pass (24 suites: 6 logic + 18 component) | exit 0 | **0 errors** (53 pre-existing warnings) |
 
 Mobile lint note: eslint + eslint-config-expo were missing before this pass (expo lint could not run at all); now installed, and **all 27 lint errors it surfaced are fixed** (react-hooks/set-state-in-effect, react-hooks/immutability, react-hooks/purity, react/no-unescaped-entities). None were in test files. Fixes (behavior-preserving):
 
@@ -52,7 +52,7 @@ Mobile lint note: eslint + eslint-config-expo were missing before this pass (exp
 - **`use-color-scheme.web.ts` hydration flag** replaced with `useSyncExternalStore` (server snapshot `false` → `'light'`, client snapshot `true` → real scheme) — the endorsed replacement for the setState-in-effect hydration pattern.
 - 5× `react/no-unescaped-entities`: escaped apostrophes in `verification-failed.tsx`, `SuccessHeader.tsx`, `VerificationInfo.tsx`, `confirm.tsx`, and header string in `navigation.tsx`.
 
-Verified end-of-pass: `npm run lint` → **0 errors / 53 warnings**, `npx tsc --noEmit` → exit 0, `jest` → **109 / 109 pass**. Warning count per changed file is at or below the git baseline (no new warnings introduced).
+Verified end-of-pass: `npm run lint` → **0 errors / 53 warnings**, `npx tsc --noEmit` → exit 0, `jest` → **113 / 113 pass** (24 suites). Warning count per changed file is at or below the git baseline (no new warnings introduced).
 
 ### Logic (utils + services) — 63 tests passing
 
@@ -70,7 +70,7 @@ Notes:
 - `upload-queue` needs a `global.fetch` mock (blob from `file://` + Cloudinary response `{ public_id }`) and 4 `apiRequest` calls for 1 snap + 2 gallery + 1 attempt on success.
 - `progress.ts` mapping is the guard against `item.id of undefined` for sparse server rows.
 
-### Components — 46 tests passing
+### Components — 50 tests passing
 
 RNTL v14 gotcha: `render()` **returns a Promise** → all component tests must `await render(...)` and `await fireEvent.press(...)`. Matchers imported via `jest-setup.js` (`setupFilesAfterEnv` → `@testing-library/react-native/dist/matchers/extend-expect`).
 
@@ -92,6 +92,8 @@ RNTL v14 gotcha: `render()` **returns a Promise** → all component tests must `
 | `src/components/__tests__/collection-grid.test.tsx` | 2 | Rows for discovered + undiscovered, onItemPress payload |
 | `src/components/__tests__/leaderboard-list-item.test.tsx` | 4 | Rank/name/level/formatted XP, You badge, no-You, onPress |
 | `src/components/__tests__/bottom-nav.test.tsx` | 3 | Tab labels, router.push on tap (expo-router mocked), no push on mount |
+| `src/components/__tests__/submit-progress.test.tsx` | 2 | All three step labels, completed steps marked done + active step highlighted |
+| `src/components/__tests__/community-bar.test.tsx` | 2 | Fetches snaps (mock), renders thumbnails + View all; renders nothing when the artifact has no snaps |
 
 BottomNav test mocks `expo-router` (`useRouter`/`usePathname`) — the center FAB's label is outside its touchable, so tap tests use the "Home" tab.
 
@@ -101,5 +103,15 @@ Run: `npm test` (alias `jest`).
 
 ## cv-service (FastAPI)
 
-No automated tests written (out of scope for this pass; `cv-contract.test.ts` validates the JSON contract the Python side must match).
-⚠️ `cv-service/.env` still has `ENVIRONMENT=test` → disables auth on `/embed` and `/compare`. Set to `production` before deploying.
+Framework: **pytest**. Config is pydantic-settings (`app/config.py`); `app/auth.py` disables auth unless `ENVIRONMENT == "production"`.
+
+Status: **22 tests passing.**
+
+| File | What's covered |
+|---|---|
+| `tests/test_api.py` | Routes / health + embed/compare wiring incl. `requires_auth` (401 when auth on) |
+| `tests/test_scoring.py` | Scoring computation |
+| `tests/test_images.py` | `fetch_image` URL handling and the Cloudinary fetch transform (`cap_cloudinary_fetch` — insert `w_800,q_auto,f_auto`, no double-apply, non-Cloudinary URLs untouched, disabled transform) |
+
+Run: `& .\.venv\Scripts\python.exe -m pytest -q`
+⚠️ The default run trips `test_requires_auth`: the local gitignored `cv-service/.env` sets `ENVIRONMENT=test`, turning auth off. Run with `$env:ENVIRONMENT='production'; & .\.venv\Scripts\python.exe -m pytest -q` for a clean 22, and flip that file to `production` before deploying.
