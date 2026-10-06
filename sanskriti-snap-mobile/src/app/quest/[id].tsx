@@ -8,7 +8,7 @@ import AppHeader from "@/components/AppHeader";
 import QuestProgressCard from "@/components/Quest/QuestProgressCard";
 import QuestArtifactItem from "@/components/Quest/QuestArtifactItem";
 import { COLORS } from "@/constants/colors";
-import { fetchQuestDetails, type QuestDetails } from "@/services/progress";
+import { fetchQuestDetails, readQuestDetailsCache, type QuestDetails } from "@/services/progress";
 import { useAuthStore } from "@/store/authstore";
 
 export default function QuestDetailScreen() {
@@ -20,20 +20,27 @@ export default function QuestDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
-      setQuest(null);
       setError(null);
       if (!id) return undefined;
-      fetchQuestDetails(id, user?.id ?? null)
-        .then((details) => {
-          if (mounted) setQuest(details);
-        })
-        .catch((loadError: Error) => {
-          if (mounted) setError(loadError.message);
-        });
+      void (async () => {
+        const cached = await readQuestDetailsCache(id);
+        if (mounted && cached) setQuest(cached);
+        try {
+          const details = await fetchQuestDetails(id, user?.id ?? null);
+          if (mounted) {
+            setQuest(details);
+            setError(null);
+          }
+        } catch (loadError) {
+          // Keep the cached quest on screen offline; only surface an error
+          // when there is nothing cached to show.
+          if (mounted && !cached) setError((loadError as Error).message);
+        }
+      })();
       return () => {
         mounted = false;
       };
-    }, [id, user?.id]),
+    }, [id, user]),
   );
 
   const handleStartExploring = () => {
