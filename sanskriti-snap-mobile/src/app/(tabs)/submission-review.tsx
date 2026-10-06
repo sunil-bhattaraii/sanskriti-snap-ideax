@@ -19,7 +19,7 @@ import SubmitProgress, {
 } from '../../components/submission/SubmitProgress';
 import VerificationNotice from '../../components/submission/VerificationNotice';
 import type { SubmissionData } from '../../constants/data/mockSubmission';
-import { ApiRequestError, apiRequest, apiRequestWithIdempotency } from '@/services/api';
+import { ApiRequestError, apiRequest, apiRequestWithIdempotency, fetchWithTimeout, LONG_REQUEST_TIMEOUT_MS } from '@/services/api';
 import { useAuthStore } from '@/store/authstore';
 import NetInfo from '@react-native-community/netinfo';
 import { enqueueVerification } from '@/services/upload-queue';
@@ -57,9 +57,10 @@ async function uploadMedia(
   uploadBody.append('timestamp', String(sign.timestamp));
   uploadBody.append('signature', sign.signature);
   uploadBody.append('folder', sign.folder);
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`,
     { method: 'POST', body: uploadBody },
+    LONG_REQUEST_TIMEOUT_MS,
   );
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.public_id) {
@@ -89,6 +90,11 @@ export default function SubmissionReviewScreen() {
   const [snapPublicId, setSnapPublicId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ReviewData | null>(null);
   const snapUploadStarted = useRef(false);
+  const submitAbort = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => submitAbort.current?.abort();
+  }, []);
 
   // Fetch artifact details on mount
   useEffect(() => {
@@ -237,6 +243,8 @@ export default function SubmissionReviewScreen() {
               );
 
               setSubmitStage('verifying');
+              const controller = new AbortController();
+              submitAbort.current = controller;
               const result = await apiRequestWithIdempotency<{
                 attemptId: string;
                 status: 'VERIFIED' | 'FLAGGED';
@@ -244,6 +252,8 @@ export default function SubmissionReviewScreen() {
                 gps: { status: string; distanceMeters: number | null; requiredMeters: number };
               }>('/verification-attempts', {
                 method: 'POST',
+                timeoutMs: LONG_REQUEST_TIMEOUT_MS,
+                signal: controller.signal,
                 body: JSON.stringify({
                   artifactId: formData.artifactId,
                   verificationImagePublicId,
@@ -323,6 +333,7 @@ export default function SubmissionReviewScreen() {
                   'We could not upload your snap. Please try again.'
               );
             } finally {
+              submitAbort.current = null;
               setSubmitting(false);
               setSubmitStage('uploading');
             }
