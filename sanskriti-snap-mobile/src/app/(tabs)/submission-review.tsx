@@ -1,6 +1,6 @@
 import { COLORS } from '@/constants/colors';
 import { Href, Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -34,6 +34,39 @@ type ReviewData = SubmissionData & {
   gpsCapturedAt: string;
 };
 
+async function uploadMedia(
+  uri: string,
+  purpose: 'VERIFICATION_SNAP' | 'VERIFICATION_GALLERY'
+) {
+  const sign = await apiRequest<{
+    cloudName: string;
+    apiKey: string;
+    timestamp: number;
+    signature: string;
+    folder: string;
+    resourceType: 'image';
+  }>('/media/sign', {
+    method: 'POST',
+    body: JSON.stringify({ purpose, contentType: 'image/jpeg' }),
+  });
+  const file = await (await fetch(uri)).blob();
+  const uploadBody = new FormData();
+  uploadBody.append('file', file);
+  uploadBody.append('api_key', sign.apiKey);
+  uploadBody.append('timestamp', String(sign.timestamp));
+  uploadBody.append('signature', sign.signature);
+  uploadBody.append('folder', sign.folder);
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`,
+    { method: 'POST', body: uploadBody },
+  );
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.public_id) {
+    throw new Error(payload?.error?.message ?? 'Image upload failed.');
+  }
+  return String(payload.public_id);
+}
+
 export default function SubmissionReviewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -52,7 +85,9 @@ export default function SubmissionReviewScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitStage, setSubmitStage] = useState<SubmitStage>('uploading');
+  const [snapPublicId, setSnapPublicId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ReviewData | null>(null);
+  const snapUploadStarted = useRef(false);
 
   // Fetch artifact details on mount
   useEffect(() => {
@@ -107,6 +142,39 @@ export default function SubmissionReviewScreen() {
     params.imageUri,
   ]);
 
+  // Upload the snap to Cloudinary as soon as the photo is available so the
+  // final submit only has to upload public photos and POST the attempt.
+  useEffect(() => {
+    const primaryImageUri = formData?.primaryImageUri;
+    if (!primaryImageUri || snapPublicId || snapUploadStarted.current) {
+      return;
+    }
+
+    let cancelled = false;
+    snapUploadStarted.current = true;
+    void (async () => {
+      try {
+        const network = await NetInfo.fetch();
+        if (!network.isConnected || cancelled) {
+          return;
+        }
+        const publicId = await uploadMedia(
+          primaryImageUri,
+          'VERIFICATION_SNAP'
+        );
+        if (!cancelled && publicId) {
+          setSnapPublicId(publicId);
+        }
+      } catch (error) {
+        console.warn('Snap pre-upload failed; will retry on submit:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formData?.primaryImageUri, snapPublicId]);
+
   const handleSubmit = () => {
     if (!formData || !user) {
       Alert.alert(
@@ -154,41 +222,13 @@ export default function SubmissionReviewScreen() {
                 return;
               }
 
-              const uploadMedia = async (uri: string, purpose: 'VERIFICATION_SNAP' | 'VERIFICATION_GALLERY') => {
-                const sign = await apiRequest<{
-                  cloudName: string;
-                  apiKey: string;
-                  timestamp: number;
-                  signature: string;
-                  folder: string;
-                  resourceType: 'image';
-                }>('/media/sign', {
-                  method: 'POST',
-                  body: JSON.stringify({ purpose, contentType: 'image/jpeg' }),
-                });
-                const file = await (await fetch(uri)).blob();
-                const uploadBody = new FormData();
-                uploadBody.append('file', file);
-                uploadBody.append('api_key', sign.apiKey);
-                uploadBody.append('timestamp', String(sign.timestamp));
-                uploadBody.append('signature', sign.signature);
-                uploadBody.append('folder', sign.folder);
-                const response = await fetch(
-                  `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`,
-                  { method: 'POST', body: uploadBody },
-                );
-                const payload = await response.json().catch(() => null);
-                if (!response.ok || !payload?.public_id) {
-                  throw new Error(payload?.error?.message ?? 'Image upload failed.');
-                }
-                return String(payload.public_id);
-              };
-
               setSubmitStage('uploading');
-              const verificationImagePublicId = await uploadMedia(
-                formData.primaryImageUri,
-                'VERIFICATION_SNAP',
-              );
+              const verificationImagePublicId =
+                snapPublicId ??
+                (await uploadMedia(
+                  formData.primaryImageUri,
+                  'VERIFICATION_SNAP'
+                ));
               const additionalPhotos = await Promise.all(
                 formData.galleryImages.slice(0, 6).map(async (uri) => ({
                   publicId: await uploadMedia(uri, 'VERIFICATION_GALLERY'),

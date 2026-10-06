@@ -1,5 +1,5 @@
 - submission takes too much time:
-    the image(snap) is uploaded on clicking submit; it should be uploaded right on the submit page
+    the image(snap) is uploaded on clicking submit; it should be uploaded right on the submit page - FIXED: the snap uploads to Cloudinary as soon as the review page opens; submit only uploads public photos + POSTs (falls back to uploading the snap if the pre-upload is still in flight or failed)
 - cloudinary delete is inconsistent on image upload
 - no image optimization, our cv uses 512 dimentions np array for images for which we upload actual images which is unnecessary 
 - cv has too much latency (> 10s): this might be because it has to fetch docs itself, and also communicate with the clip api for comparing; maybe the algorithm can be improved; i.e. comparing against chunked average or just few images; or just the cover images; 
