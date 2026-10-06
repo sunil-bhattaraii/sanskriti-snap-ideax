@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -97,136 +97,48 @@ export default function NavigationScreen() {
 
   const [userLocation, setUserLocation] = useState<Coordinate | null>(null);
   const [routeData, setRouteData] = useState<RouteData | null>(null);
-  const [distanceToArtifact, setDistanceToArtifact] = useState<number>(0);
-  const [estimatedTime, setEstimatedTime] = useState<number>(0);
   const [travelMode, setTravelMode] = useState<TravelMode>('walk');
   const [isNavigating, setIsNavigating] = useState(false);
-  const [hasArrived, setHasArrived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [routeLoading, setRouteLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [walkedRouteIndex, setWalkedRouteIndex] = useState(0);
+  const [arrivedLatch, setArrivedLatch] = useState(false);
   const lastUnlockCheckAt = useRef(0);
   const unlockRequestInFlight = useRef(false);
   const storyUnlockPromptShown = useRef(false);
+  const locationSubscription = useRef<Location.LocationSubscription | null>(null);
+  const arrivalAlertShown = useRef(false);
 
-  useEffect(() => {
-    loadArtifactAndStartNavigation();
-
-    let subscription: Location.LocationSubscription | null = null;
-    startLocationTracking().then((locationSubscription) => {
-      subscription = locationSubscription;
-    });
-
-    return () => {
-      if (subscription !== null) {
-        subscription.remove();
-      }
-    };
-  }, [artifactId]);
-
-  useEffect(() => {
-    if (userLocation && artifact) {
-      fetchRoute(userLocation, [artifact.lng, artifact.lat]);
-    }
-  }, [artifact]);
-
-  const checkStoryUnlock = async (location: Coordinate, distance: number) => {
-    if (!artifact || distance > artifact.story_unlock_radius_m) return;
-    if (unlockRequestInFlight.current || Date.now() - lastUnlockCheckAt.current < 10_000) return;
-
-    lastUnlockCheckAt.current = Date.now();
-    unlockRequestInFlight.current = true;
-    try {
-      const result = await apiRequest<{ unlocked: boolean; distanceMeters: number }>(
-        `/artifacts/${encodeURIComponent(artifact.id)}/unlock-story`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            location: {
-              latitude: location[1],
-              longitude: location[0],
-              capturedAt: new Date().toISOString(),
-            },
-          }),
-        },
-      );
-      if (result.unlocked) {
-        console.info('Story unlocked while navigating', {
-          artifactId: artifact.id,
-          distanceMeters: result.distanceMeters,
-        });
-        if (!storyUnlockPromptShown.current && distance > artifact.verification_radius_m) {
-          storyUnlockPromptShown.current = true;
-          Alert.alert(
-            'Story unlocked',
-            `You can now read the story for ${artifact.name}. You can continue navigating or view it now.`,
-            [
-              {
-                text: 'View Story',
-                onPress: () => router.replace(`/artifacts/${artifact.id}`),
-              },
-              { text: 'Continue Navigation', style: 'cancel' },
-            ],
-          );
-        }
-      }
-    } finally {
-      unlockRequestInFlight.current = false;
-    }
-  };
-
-  useEffect(() => {
-    if (routeData && userLocation) {
-      const directDistance = artifact
-        ? distanceBetweenCoordinates(
-          { latitude: userLocation[1], longitude: userLocation[0] },
-          { latitude: artifact.lat, longitude: artifact.lng },
-        )
-        : null;
-      setDistanceToArtifact(routeData.distance / 1000);
-      setEstimatedTime(
-        Math.ceil(
-          (routeData.distance / 1000) *
-            TRAVEL_MODE_CONFIG[travelMode].minutesPerKm
-        )
-      );
-
-      const nearestRouteIndex = getNearestRouteIndex(
-        routeData.geometry.coordinates,
-        userLocation
-      );
-      const routePointCount = routeData.geometry.coordinates.length;
-      setWalkedRouteIndex(nearestRouteIndex);
-      setProgress(
-        routePointCount > 1
-          ? (nearestRouteIndex / (routePointCount - 1)) * 100
-          : 0
-      );
-
-      // The route distance is intentionally used for navigation display and
-      // progress. Arrival/verification uses the direct geodesic distance.
-      if (
-        directDistance !== null &&
-        directDistance <= (artifact?.verification_radius_m || 50)
-      ) {
-        handleArrival();
-      }
-    }
-  }, [routeData, userLocation, artifact, travelMode]);
-
-  useEffect(() => {
-    if (!artifact || !userLocation) return;
-    const directDistance = distanceBetweenCoordinates(
+  const arrivalReached =
+    !!artifact &&
+    !!userLocation &&
+    distanceBetweenCoordinates(
       { latitude: userLocation[1], longitude: userLocation[0] },
       { latitude: artifact.lat, longitude: artifact.lng },
-    );
+    ) <= (artifact.verification_radius_m || 50);
 
-    if (directDistance <= artifact.verification_radius_m) handleArrival();
-    void checkStoryUnlock(userLocation, directDistance).catch((error) => {
-      console.warn('Unable to check story unlock while navigating:', error);
-    });
-  }, [userLocation, artifact]);
+  if (!arrivedLatch && arrivalReached) {
+    setArrivedLatch(true);
+  }
+
+  useEffect(() => {
+    if (!arrivedLatch || arrivalAlertShown.current) return;
+    arrivalAlertShown.current = true;
+    Alert.alert(
+      "You've Arrived!",
+      `You're now at ${artifact?.name}. You can now take a snap to collect this artifact!`,
+      [
+        {
+          text: 'Take a Snap',
+          onPress: () => router.push(`/snap/${artifactId}/confirm` as Href),
+        },
+        {
+          text: 'Stay Here',
+          style: 'cancel',
+          onPress: () => router.replace(`/artifacts/${artifactId}`),
+        },
+      ]
+    );
+  }, [arrivedLatch, artifact, artifactId, router]);
 
   const loadArtifactAndStartNavigation = async () => {
     try {
@@ -303,6 +215,22 @@ export default function NavigationScreen() {
     );
   };
 
+  const calculateBounds = (coordinates: Coordinate[]) => {
+    let minLng = Infinity,
+      maxLng = -Infinity;
+    let minLat = Infinity,
+      maxLat = -Infinity;
+
+    coordinates.forEach(([lng, lat]) => {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    });
+
+    return [minLng, minLat, maxLng, maxLat] as [number, number, number, number];
+  };
+
   const fetchRoute = async (start: Coordinate, end: Coordinate) => {
     setRouteLoading(true);
     try {
@@ -333,42 +261,120 @@ export default function NavigationScreen() {
     }
   };
 
-  const calculateBounds = (coordinates: Coordinate[]) => {
-    let minLng = Infinity,
-      maxLng = -Infinity;
-    let minLat = Infinity,
-      maxLat = -Infinity;
-
-    coordinates.forEach(([lng, lat]) => {
-      if (lng < minLng) minLng = lng;
-      if (lng > maxLng) maxLng = lng;
-      if (lat < minLat) minLat = lat;
-      if (lat > maxLat) maxLat = lat;
-    });
-
-    return [minLng, minLat, maxLng, maxLat] as [number, number, number, number];
-  };
-
-  const handleArrival = () => {
-    if (hasArrived) return;
-    setHasArrived(true);
-    setIsNavigating(true);
-    Alert.alert(
-      "You've Arrived!",
-      `You're now at ${artifact?.name}. You can now take a snap to collect this artifact!`,
-      [
-        {
-          text: 'Take a Snap',
-          onPress: () => router.push(`/snap/${artifactId}/confirm` as Href),
-        },
-        {
-          text: 'Stay Here',
-          style: 'cancel',
-          onPress: () => router.replace(`/artifacts/${artifactId}`),
-        },
-      ]
+  const routeDerived = useMemo(() => {
+    if (!routeData || !userLocation) {
+      return {
+        distanceToArtifact: 0,
+        estimatedTime: 0,
+        walkedRouteIndex: 0,
+        progress: 0,
+      };
+    }
+    const distanceToArtifact = routeData.distance / 1000;
+    const estimatedTime = Math.ceil(
+      (routeData.distance / 1000) *
+        TRAVEL_MODE_CONFIG[travelMode].minutesPerKm
     );
+    const nearestRouteIndex = getNearestRouteIndex(
+      routeData.geometry.coordinates,
+      userLocation
+    );
+    const routePointCount = routeData.geometry.coordinates.length;
+    const progress =
+      routePointCount > 1
+        ? (nearestRouteIndex / (routePointCount - 1)) * 100
+        : 0;
+    return { distanceToArtifact, estimatedTime, walkedRouteIndex: nearestRouteIndex, progress };
+  }, [routeData, userLocation, travelMode]);
+
+  const { distanceToArtifact, estimatedTime, walkedRouteIndex, progress } =
+    routeDerived;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function startNavigation() {
+      await loadArtifactAndStartNavigation();
+      if (cancelled) return;
+      const subscription = await startLocationTracking();
+      if (cancelled) {
+        subscription.remove();
+      } else {
+        locationSubscription.current = subscription;
+      }
+    }
+
+    void startNavigation();
+
+    return () => {
+      cancelled = true;
+      locationSubscription.current?.remove();
+    };
+  }, [artifactId]);
+
+  useEffect(() => {
+    if (!userLocation || !artifact) return;
+    (async () => {
+      await fetchRoute(userLocation, [artifact.lng, artifact.lat]);
+    })();
+  }, [artifact]);
+
+  const checkStoryUnlock = async (location: Coordinate, distance: number) => {
+    if (!artifact || distance > artifact.story_unlock_radius_m) return;
+    if (unlockRequestInFlight.current || Date.now() - lastUnlockCheckAt.current < 10_000) return;
+
+    lastUnlockCheckAt.current = Date.now();
+    unlockRequestInFlight.current = true;
+    try {
+      const result = await apiRequest<{ unlocked: boolean; distanceMeters: number }>(
+        `/artifacts/${encodeURIComponent(artifact.id)}/unlock-story`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            location: {
+              latitude: location[1],
+              longitude: location[0],
+              capturedAt: new Date().toISOString(),
+            },
+          }),
+        },
+      );
+      if (result.unlocked) {
+        console.info('Story unlocked while navigating', {
+          artifactId: artifact.id,
+          distanceMeters: result.distanceMeters,
+        });
+        if (!storyUnlockPromptShown.current && distance > artifact.verification_radius_m) {
+          storyUnlockPromptShown.current = true;
+          Alert.alert(
+            'Story unlocked',
+            `You can now read the story for ${artifact.name}. You can continue navigating or view it now.`,
+            [
+              {
+                text: 'View Story',
+                onPress: () => router.replace(`/artifacts/${artifact.id}`),
+              },
+              { text: 'Continue Navigation', style: 'cancel' },
+            ],
+          );
+        }
+      }
+    } finally {
+      unlockRequestInFlight.current = false;
+    }
   };
+
+  useEffect(() => {
+    if (!artifact || !userLocation) return;
+    const directDistance = distanceBetweenCoordinates(
+      { latitude: userLocation[1], longitude: userLocation[0] },
+      { latitude: artifact.lat, longitude: artifact.lng },
+    );
+
+    void checkStoryUnlock(userLocation, directDistance).catch((error) => {
+      console.warn('Unable to check story unlock while navigating:', error);
+    });
+  }, [userLocation, artifact]);
 
   const handleRecenter = () => {
     if (userLocation && cameraRef.current) {
@@ -398,14 +404,6 @@ export default function NavigationScreen() {
 
   const handleTravelModeChange = (mode: TravelMode) => {
     setTravelMode(mode);
-    if (routeData) {
-      setEstimatedTime(
-        Math.ceil(
-          (routeData.distance / 1000) *
-            TRAVEL_MODE_CONFIG[mode].minutesPerKm
-        )
-      );
-    }
   };
 
   const getCurrentInstruction = () => {

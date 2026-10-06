@@ -22,7 +22,7 @@ export default function VerificationInfo({ data }: Props) {
         <View style={styles.textContainer}>
           <Text style={styles.title}>Verification in Progress</Text>
           <Text style={styles.description}>
-            Your discovery is being verified. We'll notify you once it's
+            Your discovery is being verified. We&apos;ll notify you once it&apos;s
             collected. You are free to keep exploring!
           </Text>
           {data.estimatedTime && (

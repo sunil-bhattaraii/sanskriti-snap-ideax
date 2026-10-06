@@ -6,7 +6,7 @@ export default function SuccessHeader() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Discovery Collected!</Text>
-      <Text style={styles.subtitle}>You've unlocked a piece of history.</Text>
+      <Text style={styles.subtitle}>You&apos;ve unlocked a piece of history.</Text>
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  FlatList,
   ActivityIndicator,
-  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -21,6 +19,7 @@ import {
   getNearbyNepalArtifacts,
   searchNepalArtifacts,
 } from '../../services/nepal-search';
+import { nowTimestamp } from '../../utils/time';
 
 type RecentSearch = {
   id: string;
@@ -54,74 +53,7 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'recent' | 'results'>('recent');
 
-  // Load recent searches on mount
-  useEffect(() => {
-    loadRecentSearches();
-  }, []);
-
-  // Search when query changes
-  useEffect(() => {
-    if (query.trim().length > 0) {
-      const timer = setTimeout(() => {
-        performSearch(query);
-        setActiveTab('results');
-      }, 500);
-      return () => clearTimeout(timer);
-    } else {
-      setActiveTab('recent');
-      setSearchResults(null);
-      setDestinations([]);
-    }
-  }, [query]);
-
-  const loadRecentSearches = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@sanskriti_recent_searches');
-      if (stored) {
-        setRecentSearches(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error('Error loading recent searches:', error);
-    }
-  };
-
-  const saveRecentSearch = async (searchQuery: string) => {
-    try {
-      const newSearch: RecentSearch = {
-        id: Date.now().toString(),
-        query: searchQuery,
-        timestamp: Date.now(),
-      };
-
-      const updated = [
-        newSearch,
-        ...recentSearches.filter((s) => s.query !== searchQuery),
-      ].slice(0, 10);
-      setRecentSearches(updated);
-      await AsyncStorage.setItem(
-        '@sanskriti_recent_searches',
-        JSON.stringify(updated)
-      );
-    } catch (error) {
-      console.error('Error saving recent search:', error);
-    }
-  };
-
-  const clearRecentSearch = async (id: string) => {
-    const updated = recentSearches.filter((s) => s.id !== id);
-    setRecentSearches(updated);
-    await AsyncStorage.setItem(
-      '@sanskriti_recent_searches',
-      JSON.stringify(updated)
-    );
-  };
-
-  const clearAllRecent = async () => {
-    setRecentSearches([]);
-    await AsyncStorage.removeItem('@sanskriti_recent_searches');
-  };
-
-  const performSearch = async (searchQuery: string) => {
+  async function performSearch(searchQuery: string) {
     setLoading(true);
     try {
       const matches = await searchNepalArtifacts(searchQuery);
@@ -157,6 +89,75 @@ export default function SearchScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Load recent searches on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@sanskriti_recent_searches');
+        if (stored) {
+          setRecentSearches(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.error('Error loading recent searches:', error);
+      }
+    })();
+  }, []);
+
+  // Search when query changes
+  useEffect(() => {
+    if (query.trim().length === 0) return;
+    const timer = setTimeout(() => {
+      performSearch(query);
+      setActiveTab('results');
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const handleQueryChange = (text: string) => {
+    setQuery(text);
+    if (text.trim().length === 0) {
+      setActiveTab('recent');
+      setSearchResults(null);
+      setDestinations([]);
+    }
+  };
+
+  const saveRecentSearch = async (searchQuery: string) => {
+    try {
+      const newSearch: RecentSearch = {
+        id: nowTimestamp().toString(),
+        query: searchQuery,
+        timestamp: nowTimestamp(),
+      };
+
+      const updated = [
+        newSearch,
+        ...recentSearches.filter((s) => s.query !== searchQuery),
+      ].slice(0, 10);
+      setRecentSearches(updated);
+      await AsyncStorage.setItem(
+        '@sanskriti_recent_searches',
+        JSON.stringify(updated)
+      );
+    } catch (error) {
+      console.error('Error saving recent search:', error);
+    }
+  };
+
+  const clearRecentSearch = async (id: string) => {
+    const updated = recentSearches.filter((s) => s.id !== id);
+    setRecentSearches(updated);
+    await AsyncStorage.setItem(
+      '@sanskriti_recent_searches',
+      JSON.stringify(updated)
+    );
+  };
+
+  const clearAllRecent = async () => {
+    setRecentSearches([]);
+    await AsyncStorage.removeItem('@sanskriti_recent_searches');
   };
 
   const handleSelectDestination = (dest: Destination) => {
@@ -166,7 +167,7 @@ export default function SearchScreen() {
       params: {
         lat: String(dest.lat),
         lng: String(dest.lng),
-        focus: `${dest.id}-${Date.now()}`,
+        focus: `${dest.id}-${nowTimestamp()}`,
       },
     });
   };
@@ -180,7 +181,7 @@ export default function SearchScreen() {
           lat: String(artifact.lat),
           lng: String(artifact.lng),
           artifactId: artifact.id,
-          focus: `${artifact.id}-${Date.now()}`,
+          focus: `${artifact.id}-${nowTimestamp()}`,
         },
       });
       return;
@@ -346,12 +347,12 @@ export default function SearchScreen() {
             placeholder="Search cities, landmarks, or artifacts"
             placeholderTextColor={COLORS.tertiary}
             value={query}
-            onChangeText={setQuery}
+            onChangeText={handleQueryChange}
             autoFocus
             autoCapitalize="none"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
+            <TouchableOpacity onPress={() => handleQueryChange('')}>
               <Ionicons name="close-circle" size={20} color={COLORS.tertiary} />
             </TouchableOpacity>
           )}

@@ -36,6 +36,30 @@ export default function SnapConfirmScreen() {
     null
   );
 
+  const loadArtifactDetails = async () => {
+    try {
+      const data = await apiRequest<{
+        id: string;
+        name: string;
+        category: string;
+        coverImageUrl: string | null;
+        referenceImageUrls: string[];
+        xpReward: number;
+      }>(`/artifacts/${encodeURIComponent(artifactId)}`);
+      setArtifact({
+        id: data.id,
+        name: data.name,
+        category: data.category,
+        reference_images: data.referenceImageUrls ?? (data.coverImageUrl ? [data.coverImageUrl] : []),
+        xp_value: data.xpReward,
+      });
+    } catch (error) {
+      console.error('Error loading artifact:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -69,32 +93,10 @@ export default function SnapConfirmScreen() {
   }, [artifactId, router, userId]);
 
   useEffect(() => {
-    loadArtifactDetails();
+    (async () => {
+      await loadArtifactDetails();
+    })();
   }, [artifactId]);
-
-  const loadArtifactDetails = async () => {
-    try {
-      const data = await apiRequest<{
-        id: string;
-        name: string;
-        category: string;
-        coverImageUrl: string | null;
-        referenceImageUrls: string[];
-        xpReward: number;
-      }>(`/artifacts/${encodeURIComponent(artifactId)}`);
-      setArtifact({
-        id: data.id,
-        name: data.name,
-        category: data.category,
-        reference_images: data.referenceImageUrls ?? (data.coverImageUrl ? [data.coverImageUrl] : []),
-        xp_value: data.xpReward,
-      });
-    } catch (error) {
-      console.error('Error loading artifact:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleTakeSnap = () => {
     router.push(`/snap/${artifactId}/camera` as Href);
@@ -159,7 +161,7 @@ export default function SnapConfirmScreen() {
           {/* Description */}
           <Text style={styles.description}>
             Capture a Snap of this artifact to verify your visit and add it to
-            your permanent collection. Your photo helps preserve Nepal's
+            your permanent collection. Your photo helps preserve Nepal&apos;s
             heritage.
           </Text>
 

@@ -91,8 +91,8 @@ export default function VerificationFailedScreen() {
               <Ionicons name="close" size={15} color={COLORS.error} />
             </View>
           </View>
-          <Text style={styles.title}>You're almost there!</Text>
-          <Text style={styles.subtitle}>You're not close enough yet.</Text>
+          <Text style={styles.title}>You&apos;re almost there!</Text>
+          <Text style={styles.subtitle}>You&apos;re not close enough yet.</Text>
         </View>
 
         <View style={styles.distanceCard}>
