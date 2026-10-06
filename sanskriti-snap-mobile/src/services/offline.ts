@@ -55,8 +55,8 @@ export async function invalidateOfflineCache() {
       key === '@sanskriti_explore_cache_v1' ||
       key === '@sanskriti_leaderboard_v1' ||
       key === '@sanskriti_nepal_search_catalog_v1' ||
+      key === '@sanskriti_featured_artifacts_v1' ||
       key.startsWith('@sanskriti_artifact_'),
-      key === '@sanskriti_featured_artifacts_v1',
   );
   if (cacheKeys.length > 0) await AsyncStorage.multiRemove(cacheKeys);
   restorePromise = null;
