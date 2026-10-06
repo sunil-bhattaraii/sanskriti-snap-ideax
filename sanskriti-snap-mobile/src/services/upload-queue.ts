@@ -47,6 +47,14 @@ export async function enqueueVerification(
   return item;
 }
 
+export async function listPendingUploads(): Promise<PendingVerification[]> {
+  return readQueue();
+}
+
+export async function getPendingUploadCount(): Promise<number> {
+  return (await readQueue()).length;
+}
+
 async function uploadMedia(uri: string, purpose: 'VERIFICATION_SNAP' | 'VERIFICATION_GALLERY') {
   const sign = await apiRequest<{
     cloudName: string; apiKey: string; timestamp: number; signature: string;

@@ -17,6 +17,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { configureApiTokenProvider } from '@/services/api';
 import { refreshProximityGeofences } from '@/services/proximity-notifications';
 import { useAuthStore } from '@/store/authstore';
+import OfflineBanner from '@/components/OfflineBanner';
 import {
   configureOfflineNetwork,
   queryClient,
@@ -148,7 +149,7 @@ function OfflineServices() {
     };
   }, []);
 
-  return null;
+  return <OfflineBanner />;
 }
 
 function AuthenticatedLayout() {
@@ -269,10 +270,10 @@ export default function RootLayout() {
     <StartupErrorBoundary>
       <ClerkProvider publishableKey={publishableKey ?? ''} tokenCache={tokenCache}>
         <QueryClientProvider client={queryClient}>
-          <OfflineServices />
           <SafeAreaProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <BottomSheetModalProvider>
+                <OfflineServices />
                 <AuthenticatedLayout />
               </BottomSheetModalProvider>
             </GestureHandlerRootView>
