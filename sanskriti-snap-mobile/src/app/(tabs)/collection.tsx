@@ -30,19 +30,26 @@ export default function CollectionScreen() {
 
   useEffect(() => {
     let mounted = true;
+    let hasCached = false;
     queueMicrotask(() => mounted && setLoading(true));
     void readCollectionCache(user?.id ?? null).then((cached) => {
       if (cached && mounted) {
+        hasCached = true;
         setCollection(cached);
         setLoading(false);
       }
     });
     fetchCollection(user?.id ?? null)
       .then((items) => {
-        if (mounted) setCollection(items);
+        if (mounted) {
+          setCollection(items);
+          setError(null);
+        }
       })
       .catch((loadError: Error) => {
-        if (mounted) setError(loadError.message);
+        // Keep the cached list on screen when offline; only surface an error
+        // when there is nothing cached to show.
+        if (mounted && !hasCached) setError(loadError.message);
       })
       .finally(() => {
         if (mounted) setLoading(false);
