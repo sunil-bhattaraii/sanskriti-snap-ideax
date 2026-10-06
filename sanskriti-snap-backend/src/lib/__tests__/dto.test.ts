@@ -75,7 +75,7 @@ describe("toVerificationAttempt", () => {
   it("derives a displayable Cloudinary URL from the publicId", () => {
     const dto = toVerificationAttempt(attempt(), artifact);
     expect(dto.verificationImageUrl).toBe(
-      "https://res.cloudinary.com/sanskriti-snap-test/image/upload/snaps/verification/abc/img1",
+      "https://res.cloudinary.com/sanskriti-snap-test/image/upload/w_800,q_auto,f_auto/snaps/verification/abc/img1",
     );
   });
 

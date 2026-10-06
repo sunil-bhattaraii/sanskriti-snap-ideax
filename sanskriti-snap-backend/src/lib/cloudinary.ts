@@ -16,9 +16,20 @@ import { Types } from "mongoose";
 /**
  * Always displayable, never signed. A signed URL would expire out of a cached
  * leaderboard row (docs/API Contract.md 7.6).
+ *
+ * The display URL applies a default delivery transform (max 800px width,
+ * auto format/quality) so lists, grids and detail images never ship the
+ * full-resolution original — the same cap the CV service uses on its fetches.
+ * Pass `null` to get the raw original, needed only where clients edit/crop.
  */
-export function imageUrl(publicId: string): string {
-  return `https://res.cloudinary.com/${env().CLOUDINARY_CLOUD_NAME}/image/upload/${publicId}`;
+const DEFAULT_READ_TRANSFORM = "w_800,q_auto,f_auto";
+
+export function imageUrl(
+  publicId: string,
+  transform: string | null = DEFAULT_READ_TRANSFORM,
+): string {
+  const segment = transform ? `${transform}/` : "";
+  return `https://res.cloudinary.com/${env().CLOUDINARY_CLOUD_NAME}/image/upload/${segment}${publicId}`;
 }
 
 /**
