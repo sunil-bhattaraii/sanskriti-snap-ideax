@@ -128,6 +128,11 @@ describe('fetchQuests', () => {
 });
 
 describe('fetchQuestDetails', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+  });
+
   it('derives hero, badge name and artifact list from the server item', async () => {
     mockApi.apiRequest.mockResolvedValue({
       ...QUEST,
@@ -169,6 +174,20 @@ describe('fetchQuestDetails', () => {
     expect(details.artifacts).toEqual([]);
     expect(details.badgeName).toBeUndefined();
     expect(details.heroImageUrl).toBe('');
+  });
+
+  it('writes the details to the per-quest cache for offline reads', async () => {
+    mockApi.apiRequest.mockResolvedValue(QUEST);
+
+    await progress.fetchQuestDetails('q1', USER);
+
+    const cached = await progress.readQuestDetailsCache('q1');
+    expect(cached?.name).toBe('Patan Trail');
+    expect(cached?.totalArtifacts).toBe(4);
+  });
+
+  it('readQuestDetailsCache returns null before any fetch', async () => {
+    expect(await progress.readQuestDetailsCache('q1')).toBeNull();
   });
 });
 

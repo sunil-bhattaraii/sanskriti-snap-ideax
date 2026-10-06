@@ -22,6 +22,7 @@ export type QuestDetails = QuestListItem & {
 
 const cacheKey = (userId: string | null) => `@sanskriti_quests_${userId ?? 'guest'}`;
 const collectionCacheKey = (userId: string | null) => `@sanskriti_collection_${userId ?? 'guest'}`;
+const questDetailsCacheKey = (questId: string) => `@sanskriti_quest_details_${questId}`;
 
 function mapCollectionItems(items: Array<Record<string, unknown>>): CollectionItem[] {
   return items.map((item) => ({
@@ -78,8 +79,8 @@ export async function invalidateQuestCache(userId: string | null) {
 export function refreshQuestCache(userId: string | null) {
   return fetchQuests(userId);
 }
-export function fetchQuestDetails(questId: string, _userId: string | null) {
-  return apiRequest<Record<string, unknown>>(`/quests/${questId}`).then((item) => ({
+function mapQuestDetails(item: Record<string, unknown>): QuestDetails {
+  return {
     id: String(item.id),
     name: String(item.name ?? ''),
     description: String(item.description ?? ''),
@@ -110,5 +111,17 @@ export function fetchQuestDetails(questId: string, _userId: string | null) {
         };
       })
       : [],
-  }));
+  };
+}
+
+export async function fetchQuestDetails(questId: string, _userId: string | null) {
+  const details = await apiRequest<Record<string, unknown>>(`/quests/${questId}`)
+    .then(mapQuestDetails);
+  await AsyncStorage.setItem(questDetailsCacheKey(questId), JSON.stringify(details));
+  return details;
+}
+
+export async function readQuestDetailsCache(questId: string): Promise<QuestDetails | null> {
+  const cached = await AsyncStorage.getItem(questDetailsCacheKey(questId));
+  return cached ? (JSON.parse(cached) as QuestDetails) : null;
 }
