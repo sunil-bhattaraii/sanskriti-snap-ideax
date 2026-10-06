@@ -55,6 +55,28 @@ export default function SnapConfirmScreen() {
       });
     } catch (error) {
       console.error('Error loading artifact:', error);
+      try {
+        const cached = await AsyncStorage.getItem(`@sanskriti_artifact_${artifactId}`);
+        if (cached) {
+          const data = JSON.parse(cached) as {
+            id: string;
+            name: string;
+            category: string;
+            coverImageUrl: string | null;
+            referenceImageUrls: string[];
+            xpReward: number;
+          };
+          setArtifact({
+            id: data.id,
+            name: data.name,
+            category: data.category,
+            reference_images: data.referenceImageUrls ?? (data.coverImageUrl ? [data.coverImageUrl] : []),
+            xp_value: data.xpReward,
+          });
+        }
+      } catch (cacheError) {
+        console.warn('No cached artifact fallback:', cacheError);
+      }
     } finally {
       setLoading(false);
     }
