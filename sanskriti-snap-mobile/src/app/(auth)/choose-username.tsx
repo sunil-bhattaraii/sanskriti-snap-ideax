@@ -29,42 +29,38 @@ export default function ChooseUsernameScreen() {
 
   const normalizedUsername = username.trim().toLowerCase();
 
-  // Generate a default username from the user's display name or email
-  useEffect(() => {
-    if (!user) return;
+  const usernamePrefillKey = user
+    ? `${user.id}|${user.fullName ?? ''}|${user.email ?? ''}|${mode}|${profile?.username ?? ''}`
+    : null;
+  const [appliedPrefillKey, setAppliedPrefillKey] = useState<string | null>(null);
 
-    // If in edit mode, use the current username from profile
+  if (usernamePrefillKey && appliedPrefillKey !== usernamePrefillKey) {
+    const source = user as NonNullable<typeof user>;
+    setAppliedPrefillKey(usernamePrefillKey);
     if (mode === 'edit' && profile?.username) {
       setUsername(profile.username);
-      return;
+    } else {
+      const displayName = source.fullName || '';
+      const email = source.email || '';
+      let defaultUsername = '';
+
+      if (displayName) {
+        defaultUsername = displayName.toLowerCase().replace(/\s+/g, '');
+      } else if (email) {
+        defaultUsername = email.split('@')[0].toLowerCase();
+      }
+
+      defaultUsername = defaultUsername.slice(0, 15);
+      if (!defaultUsername) {
+        defaultUsername = 'user_' + source.id.slice(0, 6);
+      }
+      setUsername(defaultUsername);
     }
-
-    // Otherwise (register mode), generate from display name or email
-    const displayName = user.fullName || '';
-    const email = user.email || '';
-
-    let defaultUsername = '';
-
-    if (displayName) {
-      defaultUsername = displayName.toLowerCase().replace(/\s+/g, '');
-    } else if (email) {
-      defaultUsername = email.split('@')[0].toLowerCase();
-    }
-
-    defaultUsername = defaultUsername.slice(0, 15);
-    if (!defaultUsername) {
-      defaultUsername = 'user_' + user.id.slice(0, 6);
-    }
-
-    setUsername(defaultUsername);
-  }, [user, profile, mode]);
+  }
 
   // Check username availability (debounced)
   useEffect(() => {
-    if (!user) {
-      setIsAvailable(null);
-      return;
-    }
+    if (!user) return;
 
     const checkAvailability = async () => {
       if (!normalizedUsername || normalizedUsername.length < 3) {

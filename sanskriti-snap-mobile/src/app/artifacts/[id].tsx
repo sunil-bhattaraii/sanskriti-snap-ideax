@@ -39,16 +39,6 @@ export default function ArtifactDetailScreen() {
   const [isSaved, setIsSaved] = useState(false);
   const artifactCacheKey = `@sanskriti_artifact_${artifactId}`;
 
-  useEffect(() => {
-    if (artifactId) {
-      loadArtifactDetails();
-    }
-  }, [artifactId]);
-
-  useEffect(() => {
-    void isPlaceSaved(artifactId).then(setIsSaved);
-  }, [artifactId]);
-
   const loadArtifactDetails = async () => {
     try {
       setLoading(true);
@@ -96,6 +86,18 @@ export default function ArtifactDetailScreen() {
     }
   };
 
+  useEffect(() => {
+    if (artifactId) {
+      (async () => {
+        await loadArtifactDetails();
+      })();
+    }
+  }, [artifactId]);
+
+  useEffect(() => {
+    void isPlaceSaved(artifactId).then(setIsSaved);
+  }, [artifactId]);
+
   const unlockStoryAtCurrentLocation = async () => {
     if (!artifactId || !artifact || artifact.storyUnlocked) return;
     const permission = await Location.getForegroundPermissionsAsync();
@@ -133,11 +135,15 @@ export default function ArtifactDetailScreen() {
 
   useEffect(() => {
     if (!artifact || artifact.storyUnlocked) return;
-    void unlockStoryAtCurrentLocation().catch((error) => {
+    void (async () => {
+      await unlockStoryAtCurrentLocation();
+    })().catch((error) => {
       console.warn('Unable to check story unlock distance:', error);
     });
     const interval = setInterval(() => {
-      void unlockStoryAtCurrentLocation().catch((error) => {
+      void (async () => {
+        await unlockStoryAtCurrentLocation();
+      })().catch((error) => {
         console.warn('Unable to check story unlock distance:', error);
       });
     }, 15_000);

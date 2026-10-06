@@ -18,10 +18,16 @@ export default function CachedImage({
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [hasLoadError, setHasLoadError] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const remoteKey = remoteUri ?? null;
+  const [prevRemoteKey, setPrevRemoteKey] = useState(remoteKey);
+  if (prevRemoteKey !== remoteKey) {
+    setPrevRemoteKey(remoteKey);
     setLocalUri(null);
     setHasLoadError(false);
+  }
+
+  useEffect(() => {
+    let mounted = true;
     void getCachedImageUri(remoteUri).then((uri) => {
       if (mounted) setLocalUri(uri);
     });

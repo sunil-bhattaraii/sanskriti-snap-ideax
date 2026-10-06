@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/store/authstore";
 import { router, Stack } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import ScreenHeader from "../../components/ScreenHeader";
 import SettingsItem from "../../components/settings/SettingsItem";
@@ -11,16 +11,19 @@ import { invalidateOfflineCache } from "../../services/offline";
 import { syncOfflineData } from "../../services/offline-sync";
 
 export default function SettingsScreen() {
-  const [proximityAlerts, setProximityAlerts] = useState(true);
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
   const signOut = useAuthStore((state) => state.signOut);
+  const [proximityAlerts, setProximityAlerts] = useState(profile?.notifications.enabled ?? true);
   const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
-    setProximityAlerts(profile?.notifications.enabled ?? true);
-  }, [profile?.notifications.enabled]);
+  const enabledPref = profile?.notifications.enabled;
+  const [prevEnabledPref, setPrevEnabledPref] = useState(enabledPref);
+  if (prevEnabledPref !== enabledPref) {
+    setPrevEnabledPref(enabledPref);
+    setProximityAlerts(enabledPref ?? true);
+  }
 
   const handleProximityAlertsChange = async (enabled: boolean) => {
     setProximityAlerts(enabled);

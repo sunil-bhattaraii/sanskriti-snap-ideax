@@ -101,10 +101,7 @@ export default function ExploreScreen() {
     return () => clearTimeout(timer);
   }, [loading, params.lat, params.lng, params.focus]);
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
+    if (!searchQuery.trim()) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -129,6 +126,13 @@ export default function ExploreScreen() {
       clearTimeout(timer);
     };
   }, [searchQuery]);
+
+  const handleSearchQueryChange = (text: string) => {
+    setSearchQuery(text);
+    if (!text.trim()) {
+      setSearchResults([]);
+    }
+  };
 
   // ✅ Handle Search Selection
   const handleSearchSelect = (result: SearchResult) => {
@@ -170,7 +174,7 @@ export default function ExploreScreen() {
           <SearchBar
             embedded
             query={searchQuery}
-            setQuery={setSearchQuery}
+            setQuery={handleSearchQueryChange}
             results={searchResults}
             onSelect={handleSearchSelect}
             onClose={() => setSearchResults([])}
