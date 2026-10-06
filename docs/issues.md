@@ -3,7 +3,7 @@
 - cloudinary delete is inconsistent on image upload
 - no image optimization, our cv uses 512 dimentions np array for images for which we upload actual images which is unnecessary 
 - cv has too much latency (> 10s): this might be because it has to fetch docs itself, and also communicate with the clip api for comparing; maybe the algorithm can be improved; i.e. comparing against chunked average or just few images; or just the cover images; 
-there's something wrong with the splash screen,
+there's something wrong with the splash screen, - FIXED: re-added expo-splash-screen (SDK 57) with a branded config (terracotta #8E3B22 background, square logo, imageWidth 96); previous config had been removed entirely leaving a default white prebuild splash
 the location focus btn on explore page overlaps the bottom sheet, - FIXED: MapControls anchors above the peeked sheet height (15% of window) instead of a fixed 140px
 the collection cards dont show anything(link them to the story viewing page),
 the community apis arent used(use them in the artifact detail unlocked page to show what others clicked add small bar having thumbnails of community images and a lil view all link that takes to the gallery by community)
