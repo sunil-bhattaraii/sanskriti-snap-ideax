@@ -84,14 +84,23 @@ describe("env", () => {
 });
 
 describe("imageUrl", () => {
-  it("builds an unsigned, always-displayable CDN url", () => {
+  it("builds an unsigned CDN url with the default read transform", () => {
     expect(imageUrl("snaps/verification/abc/img1")).toBe(
-      "https://res.cloudinary.com/sanskriti-snap-test/image/upload/snaps/verification/abc/img1",
+      "https://res.cloudinary.com/sanskriti-snap-test/image/upload/w_800,q_auto,f_auto/snaps/verification/abc/img1",
     );
   });
 
   it("carries no signature or expiry so a cached row never goes stale", () => {
     expect(imageUrl("a/b")).not.toMatch(/(sig|exp|timestamp)=/);
+  });
+
+  it("accepts a custom transform and can opt out of one for originals", () => {
+    expect(imageUrl("a/b", "w_200,c_fill")).toContain(
+      "/image/upload/w_200,c_fill/a/b",
+    );
+    expect(imageUrl("a/b", null)).toBe(
+      "https://res.cloudinary.com/sanskriti-snap-test/image/upload/a/b",
+    );
   });
 });
 
