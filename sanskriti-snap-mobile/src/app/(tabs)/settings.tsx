@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/store/authstore";
-import { router, Stack } from "expo-router";
-import React, { useState } from "react";
+import { router, Stack, useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import ScreenHeader from "../../components/ScreenHeader";
 import SettingsItem from "../../components/settings/SettingsItem";
@@ -9,6 +9,7 @@ import { COLORS } from "../../constants/colors";
 import { backendClient } from "../../services/backendClient";
 import { invalidateOfflineCache } from "../../services/offline";
 import { syncOfflineData } from "../../services/offline-sync";
+import { getPendingUploadCount, processPendingVerifications } from "../../services/upload-queue";
 
 export default function SettingsScreen() {
   const user = useAuthStore((state) => state.user);
@@ -17,6 +18,17 @@ export default function SettingsScreen() {
   const signOut = useAuthStore((state) => state.signOut);
   const [proximityAlerts, setProximityAlerts] = useState(profile?.notifications.enabled ?? true);
   const [syncing, setSyncing] = useState(false);
+  const [pendingUploads, setPendingUploads] = useState(0);
+
+  const refreshPendingUploads = useCallback(() => {
+    void getPendingUploadCount().then(setPendingUploads).catch(() => undefined);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshPendingUploads();
+    }, [refreshPendingUploads]),
+  );
 
   const enabledPref = profile?.notifications.enabled;
   const [prevEnabledPref, setPrevEnabledPref] = useState(enabledPref);
@@ -60,6 +72,7 @@ export default function SettingsScreen() {
     try {
       await invalidateOfflineCache();
       await syncOfflineData(user?.id ?? null);
+      refreshPendingUploads();
       Alert.alert("Sync complete", "Your offline data has been refreshed.");
     } catch (error) {
       Alert.alert(
@@ -68,6 +81,35 @@ export default function SettingsScreen() {
       );
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleUploadPending = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const before = await getPendingUploadCount();
+      if (before === 0) {
+        Alert.alert("Nothing to upload", "All your submissions have already been uploaded.");
+        return;
+      }
+      await processPendingVerifications();
+      const after = await getPendingUploadCount();
+      setPendingUploads(after);
+      Alert.alert(
+        after === 0 ? "Upload complete" : "Retry needed",
+        after === 0
+          ? `Your ${before} queued submission(s) have been uploaded.`
+          : `${after} submission(s) are still waiting. They will retry automatically when you're back online.`,
+      );
+    } catch (error) {
+      Alert.alert(
+        "Upload failed",
+        error instanceof Error ? error.message : "Unable to upload queued submissions.",
+      );
+    } finally {
+      setSyncing(false);
+      refreshPendingUploads();
     }
   };
 
@@ -149,6 +191,14 @@ export default function SettingsScreen() {
             value={syncing ? "Syncing..." : "Sync now"}
             hasArrow
             onPress={() => void handleSync()}
+          />
+          <SettingsItem
+            icon="cloud-upload-outline"
+            title="Pending Uploads"
+            subtitle="Verifications queued while offline"
+            value={syncing ? "Uploading..." : String(pendingUploads)}
+            hasArrow
+            onPress={() => void handleUploadPending()}
           />
           <SettingsItem icon="information-circle-outline" title="Version" value="1.0.0" />
           <SettingsItem
