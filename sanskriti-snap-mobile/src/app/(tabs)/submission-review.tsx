@@ -24,6 +24,7 @@ import { useAuthStore } from '@/store/authstore';
 import NetInfo from '@react-native-community/netinfo';
 import { enqueueVerification } from '@/services/upload-queue';
 import { offlineFirstRequest } from '@/services/cached-api';
+import { resizeForUpload } from '@/utils/resize-image';
 
 type ReviewData = SubmissionData & {
   artifactId: string;
@@ -359,14 +360,16 @@ export default function SubmissionReviewScreen() {
     });
 
     if (!result.canceled) {
+      const resized = await Promise.all(
+        result.assets.map(async (asset) =>
+          resizeForUpload(asset.uri, asset.width, asset.height)
+        )
+      );
       setFormData((previous) =>
         previous
           ? {
               ...previous,
-              galleryImages: [
-                ...previous.galleryImages,
-                ...result.assets.map((asset) => asset.uri),
-              ],
+              galleryImages: [...previous.galleryImages, ...resized],
             }
           : previous
       );

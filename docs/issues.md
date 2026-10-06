@@ -1,7 +1,7 @@
 - submission takes too much time:
     the image(snap) is uploaded on clicking submit; it should be uploaded right on the submit page - FIXED: the snap uploads to Cloudinary as soon as the review page opens; submit only uploads public photos + POSTs (falls back to uploading the snap if the pre-upload is still in flight or failed)
 - cloudinary delete is inconsistent on image upload
-- no image optimization, our cv uses 512 dimentions np array for images for which we upload actual images which is unnecessary 
+- no image optimization, our cv uses 512 dimentions np array for images for which we upload actual images which is unnecessary - FIXED: images are downscaled to a max 1600px long side (JPEG ~0.7) on the device before upload — camera capture and gallery picks both run through expo-image-manipulator 
 - cv has too much latency (> 10s): this might be because it has to fetch docs itself, and also communicate with the clip api for comparing; maybe the algorithm can be improved; i.e. comparing against chunked average or just few images; or just the cover images; 
 there's something wrong with the splash screen, - FIXED: re-added expo-splash-screen (SDK 57) with a branded config (terracotta #8E3B22 background, square logo, imageWidth 96); previous config had been removed entirely leaving a default white prebuild splash
 the location focus btn on explore page overlaps the bottom sheet, - FIXED: MapControls anchors above the peeked sheet height (15% of window) instead of a fixed 140px
