@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { QuestArtifact } from '@/constants/Mock';
+import CachedImage from '@/components/CachedImage';
 
 interface QuestArtifactItemProps {
   artifact: QuestArtifact;
@@ -20,7 +21,7 @@ export default function QuestArtifactItem({ artifact }: QuestArtifactItemProps) 
       {/* Thumbnail */}
       <View style={styles.imageContainer}>
         {artifact.isDiscovered && artifact.imageUrl ? (
-          <Image source={{ uri: artifact.imageUrl }} style={styles.image} />
+          <CachedImage remoteUri={artifact.imageUrl} style={styles.image} resizeMode="cover" />
         ) : (
           <View style={styles.lockedPlaceholder}>
             <Ionicons name="lock-closed" size={24} color={COLORS.tertiary} />

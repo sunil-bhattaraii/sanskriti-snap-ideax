@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/colors';
+import CachedImage from '@/components/CachedImage';
 
 export interface QuestHeroProps {
   name: string;
@@ -15,7 +16,7 @@ export default function QuestHero({ name, description, category, heroImageUrl, o
   return (
     <View style={styles.container}>
       {/* Hero Image */}
-      <Image source={{ uri: heroImageUrl }} style={styles.heroImage} />
+      <CachedImage remoteUri={heroImageUrl} style={styles.heroImage} resizeMode="cover" />
 
       {/* Dark Overlay for text readability */}
       <View style={styles.overlay} />
