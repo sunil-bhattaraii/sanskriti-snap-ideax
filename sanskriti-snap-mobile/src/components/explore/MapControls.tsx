@@ -1,5 +1,10 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 
@@ -8,12 +13,16 @@ interface MapControlsProps {
   bottom?: number;
 }
 
+const PEEK_RATIO = 0.15;
+
 export default function MapControls({
   onRecenter,
-  bottom = 140,
+  bottom,
 }: MapControlsProps) {
+  const { height } = useWindowDimensions();
+  const resolvedBottom = bottom ?? Math.round(height * PEEK_RATIO) + 12;
   return (
-    <View style={[styles.container, { bottom }]}>
+    <View style={[styles.container, { bottom: resolvedBottom }]}>
       <TouchableOpacity style={styles.button} onPress={onRecenter}>
         <Ionicons name="locate-outline" size={24} color={COLORS.primary} />
       </TouchableOpacity>
