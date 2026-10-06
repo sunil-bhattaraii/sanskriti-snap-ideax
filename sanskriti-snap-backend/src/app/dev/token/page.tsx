@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function TokenPage() {
@@ -35,12 +36,12 @@ export default function TokenPage() {
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-zinc-600 dark:text-zinc-400">You are not signed in.</p>
-          <a
+          <Link
             href="/sign-in"
             className="inline-block rounded-full bg-black px-6 py-2 text-sm font-medium text-white dark:bg-white dark:text-black"
           >
             Sign in
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -51,7 +52,7 @@ export default function TokenPage() {
       <div className="w-full max-w-2xl space-y-4">
         <h1 className="text-xl font-semibold">Session token</h1>
         <p className="text-sm text-zinc-500">
-          Paste this into Scalar's <strong>Authorize</strong> dialog. Tokens expire
+          Paste this into Scalar&apos;s <strong>Authorize</strong> dialog. Tokens expire
           after ~60 s — hit <strong>Refresh</strong> if you get a 401.
         </p>
 
