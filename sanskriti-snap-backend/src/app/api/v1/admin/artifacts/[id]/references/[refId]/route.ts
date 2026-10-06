@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { Types } from "mongoose";
 
 import { requireAdmin } from "@/lib/auth";
+import { destroyAsset } from "@/lib/cloudinary";
 import { connect, withTransaction } from "@/lib/db";
 import { ApiError, toErrorResponse } from "@/lib/errors";
 import { Artifact, ArtifactReference } from "@/models/artifact";
@@ -34,6 +35,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     await connect();
 
+    // Captured before the delete commits so the Cloudinary cleanup runs only for
+    // a reference that actually vanished, and never inside the transaction.
+    let deletedPublicId: string | null = null;
+
     await withTransaction(async (session) => {
       const reference = await ArtifactReference.findOneAndDelete(
         {
@@ -46,6 +51,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
       if (!reference) {
         throw ApiError.notFound("Reference not found for this artifact.");
       }
+
+      deletedPublicId = reference.cloudinaryPublicId ?? null;
 
       // Clear the artifact's cached coverImageUrl when the deleted reference
       // was the designated cover. The artifact is left without a cover rather
@@ -75,6 +82,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
         { session },
       );
     });
+
+    if (deletedPublicId) {
+      await destroyAsset(deletedPublicId);
+    }
 
     return NextResponse.json({ deleted: true });
   } catch (err) {

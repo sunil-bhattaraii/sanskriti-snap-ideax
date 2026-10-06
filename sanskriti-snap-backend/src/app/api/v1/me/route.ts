@@ -8,11 +8,12 @@
 
 import { NextResponse } from "next/server";
 import { requireAuthContext } from "@/lib/auth";
-import { imageUrl } from "@/lib/cloudinary";
+import { destroyAsset, imageUrl } from "@/lib/cloudinary";
 import { PatchProfileRequest } from "@/lib/contracts";
 import { toErrorResponse } from "@/lib/errors";
 import { readJsonBody } from "@/lib/http";
 import { loadOwnProfile, updateOwnProfile } from "@/lib/profile";
+import { User } from "@/models/user";
 
 export async function GET() {
   try {
@@ -33,6 +34,10 @@ export async function PATCH(request: Request) {
 
     const update: Record<string, unknown> = {};
     if (body.displayName !== undefined) update.displayName = body.displayName;
+
+    // Read before the write: once profileImage is replaced the old publicId is
+    // gone from the document, so it must be captured here for the cleanup below.
+    let previousPublicId: string | null = null;
     if (body.profileImagePublicId !== undefined) {
       // Only the public id is accepted; the URL is derived here so a client
       // cannot point its avatar at an arbitrary host.
@@ -40,9 +45,26 @@ export async function PATCH(request: Request) {
         publicId: body.profileImagePublicId,
         url: imageUrl(body.profileImagePublicId),
       };
+      const previous = await User.findById(user._id)
+        .select("profileImage")
+        .lean();
+      previousPublicId = previous?.profileImage?.publicId ?? null;
     }
 
-    return NextResponse.json(await updateOwnProfile(user._id, update));
+    const profile = await updateOwnProfile(user._id, update);
+
+    // A replaced avatar orphans the previous Cloudinary asset unless we remove
+    // it. Destroy after the write commits and only when the id actually
+    // changed; a re-upload of the same image must survive untouched.
+    if (
+      body.profileImagePublicId !== undefined &&
+      previousPublicId &&
+      previousPublicId !== body.profileImagePublicId
+    ) {
+      await destroyAsset(previousPublicId);
+    }
+
+    return NextResponse.json(profile);
   } catch (err) {
     return toErrorResponse(err);
   }

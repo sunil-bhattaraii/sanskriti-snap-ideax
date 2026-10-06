@@ -1,9 +1,24 @@
 import { createHash } from "node:crypto";
 import { Types } from "mongoose";
 import { describe, expect, it, vi } from "vitest";
+import { v2 as cloudinary } from "cloudinary";
 
-import { assertMediaOwnership, signUpload, imageUrl } from "../cloudinary";
+import {
+  assertMediaOwnership,
+  signUpload,
+  imageUrl,
+  destroyAsset,
+} from "../cloudinary";
 import { env } from "../env";
+
+vi.mock("cloudinary", () => {
+  return {
+    v2: {
+      config: vi.fn(),
+      uploader: { destroy: vi.fn() },
+    },
+  };
+});
 
 describe("env", () => {
   it("exposes the required server variables", () => {
@@ -170,5 +185,32 @@ describe("assertMediaOwnership", () => {
 
   it("rejects an empty publicId", () => {
     expect(assertMediaOwnership("", "PROFILE_IMAGE", userId)).toBe(false);
+  });
+});
+
+describe("destroyAsset", () => {
+  it("configures the SDK from env and destroys the given asset as an image", async () => {
+    const destroy = vi
+      .mocked(cloudinary.uploader.destroy)
+      .mockResolvedValue({ result: "ok" });
+
+    await destroyAsset("team-omelo/snaps/verification/t/p1.jpg");
+
+    expect(cloudinary.config).toHaveBeenCalledWith({
+      cloud_name: env().CLOUDINARY_CLOUD_NAME,
+      api_key: env().CLOUDINARY_API_KEY,
+      api_secret: env().CLOUDINARY_API_SECRET,
+    });
+    expect(destroy).toHaveBeenCalledWith("team-omelo/snaps/verification/t/p1.jpg", {
+      resource_type: "image",
+    });
+  });
+
+  it("never throws when Cloudinary rejects", async () => {
+    vi.mocked(cloudinary.uploader.destroy).mockRejectedValueOnce(
+      new Error("network"),
+    );
+
+    await expect(destroyAsset("team-omelo/whatever/x.jpg")).resolves.toBeUndefined();
   });
 });

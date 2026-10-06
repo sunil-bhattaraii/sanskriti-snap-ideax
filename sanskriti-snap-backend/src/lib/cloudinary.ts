@@ -8,6 +8,7 @@
  */
 
 import { createHash, createHmac } from "node:crypto";
+import { v2 as cloudinary } from "cloudinary";
 import type { MediaPurpose, MediaSignResponse } from "./contracts";
 import { env } from "./env";
 import { Types } from "mongoose";
@@ -91,4 +92,44 @@ export function assertMediaOwnership(
   const token = userMediaToken(userId);
   const expectedPrefix = `${env().CLOUDINARY_CLOUD_NAME}/${PURPOSE_FOLDERS[purpose]}/${token}/`;
   return publicId.startsWith(expectedPrefix);
+}
+
+let configured = false;
+
+function getCloudinary() {
+  if (!configured) {
+    cloudinary.config({
+      cloud_name: env().CLOUDINARY_CLOUD_NAME,
+      api_key: env().CLOUDINARY_API_KEY,
+      api_secret: env().CLOUDINARY_API_SECRET,
+    });
+    configured = true;
+  }
+  return cloudinary;
+}
+
+/**
+ * Best-effort removal of a Cloudinary asset when a write makes it
+ * unreferenced. Never throws: cleanup must not fail a write that already
+ * committed, and destroying a deleted or never-uploaded asset is a no-op.
+ * Call this after the DB commit, never inside a withTransaction callback
+ * (AGENTS.md).
+ */
+export async function destroyAsset(publicId: string): Promise<void> {
+  try {
+    const result = await getCloudinary().uploader.destroy(publicId, {
+      resource_type: "image",
+    });
+    if (result?.result && result.result !== "ok") {
+      console.warn("[cloudinary] destroy reported a non-ok result", {
+        publicId,
+        result: result.result,
+      });
+    }
+  } catch (err) {
+    console.warn("[cloudinary] destroy failed, asset left in place", {
+      publicId,
+      err,
+    });
+  }
 }
