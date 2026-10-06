@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     cv_allow_http_images: bool = False
     cv_image_max_bytes: int = 10 * 1024 * 1024
     cv_image_fetch_timeout_s: float = 4.0
+    # Applied to res.cloudinary.com URLs before download so the service never
+    # pulls a full-resolution photo only to downscale it to a 224px CLIP input.
+    cv_cloudinary_fetch_transform: str = "w_800,q_auto,f_auto"
 
     cv_default_top_k: int = 3
     cv_enable_docs: bool = False
