@@ -1,7 +1,14 @@
 export type TokenProvider = () => Promise<string | null>;
 
-const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 let tokenProvider: TokenProvider = async () => null;
+
+function getApiUrl(): string {
+  const url = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+  if (!url) {
+    throw new Error('EXPO_PUBLIC_API_URL is not configured. Set it to the backend origin.');
+  }
+  return url;
+}
 
 export function configureApiTokenProvider(provider: TokenProvider) {
   tokenProvider = provider;
@@ -21,18 +28,66 @@ export class ApiRequestError extends Error {
   }
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  if (!apiUrl) {
-    throw new Error('EXPO_PUBLIC_API_URL is not configured. Set it to the backend origin.');
+/** Default ceiling for any single request; real responses are far faster. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * For synchronous cap-hungry flows. The verification attempt POST can
+ * legitimately take ~33s (CV 10s x 3 attempts + backoff), so it gets headroom.
+ */
+export const LONG_REQUEST_TIMEOUT_MS = 60_000;
+
+export type ApiRequestOptions = RequestInit & { timeoutMs?: number };
+
+/** fetch() with an absolute wall-clock ceiling that also honours a caller signal. */
+export async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  let timedOut = false;
+
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  const abortFromCaller = () => controller.abort();
+  init.signal?.addEventListener('abort', abortFromCaller, { once: true });
+  if (init.signal?.aborted) {
+    controller.abort();
   }
 
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (timedOut) {
+      throw new ApiRequestError(
+        `Request timed out after ${Math.round(timeoutMs / 1000)}s.`,
+        0,
+        'REQUEST_TIMEOUT',
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    init.signal?.removeEventListener('abort', abortFromCaller);
+  }
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   const token = await tokenProvider();
   const headers = new Headers(options.headers);
   headers.set('Accept', 'application/json');
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(`${apiUrl}/api/v1${path}`, { ...options, headers });
+  const response = await fetchWithTimeout(`${getApiUrl()}/api/v1${path}`, { ...options, headers }, timeoutMs);
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const error = payload?.error;
@@ -60,7 +115,7 @@ export function createIdempotencyKey() {
 
 export async function apiRequestWithIdempotency<T>(
   path: string,
-  options: RequestInit = {},
+  options: ApiRequestOptions = {},
 ): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set('Idempotency-Key', createIdempotencyKey());

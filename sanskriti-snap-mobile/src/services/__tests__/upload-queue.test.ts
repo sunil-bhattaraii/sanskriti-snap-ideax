@@ -13,6 +13,10 @@ jest.mock('@react-native-async-storage/async-storage', () => {
 const mockApi = {
   apiRequest: jest.fn(),
   createIdempotencyKey: jest.fn(() => 'idem-1'),
+  fetchWithTimeout: jest.fn((input: unknown, init: RequestInit) =>
+    fetch(input as RequestInfo, init),
+  ),
+  LONG_REQUEST_TIMEOUT_MS: 60_000,
 };
 jest.mock('../api', () => mockApi);
 

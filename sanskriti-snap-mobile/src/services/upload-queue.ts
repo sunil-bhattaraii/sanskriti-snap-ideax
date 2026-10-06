@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiRequest, createIdempotencyKey } from './api';
+import { apiRequest, createIdempotencyKey, fetchWithTimeout, LONG_REQUEST_TIMEOUT_MS } from './api';
 import { updateLocalPhotoStatus } from './local-photos';
 
 const QUEUE_KEY = '@sanskriti_verification_upload_queue_v1';
@@ -62,9 +62,10 @@ async function uploadMedia(uri: string, purpose: 'VERIFICATION_SNAP' | 'VERIFICA
   body.append('timestamp', String(sign.timestamp));
   body.append('signature', sign.signature);
   body.append('folder', sign.folder);
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://api.cloudinary.com/v1_1/${sign.cloudName}/${sign.resourceType}/upload`,
     { method: 'POST', body },
+    LONG_REQUEST_TIMEOUT_MS,
   );
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.public_id) {
@@ -83,6 +84,7 @@ async function uploadVerification(item: PendingVerification) {
   return apiRequest('/verification-attempts', {
     method: 'POST',
     headers: { 'Idempotency-Key': item.idempotencyKey },
+    timeoutMs: LONG_REQUEST_TIMEOUT_MS,
     body: JSON.stringify({
       artifactId: item.artifactId,
       verificationImagePublicId,
