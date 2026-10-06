@@ -20,11 +20,7 @@ export type NepalSearchArtifact = {
 };
 
 const CACHE_KEY = '@sanskriti_nepal_search_catalog_v1';
-const CACHE_TTL_MS = 60 * 60 * 1000;
-const NEPAL_CENTER = { lat: 28.25, lng: 84.0 };
-const NEPAL_RADIUS_M = 500_000;
-
-let catalogPromise: Promise<NepalSearchArtifact[]> | null = null;
+const MAX_CACHED = 200;
 
 function isNepalCoordinate(lat: number, lng: number) {
   return lat >= 26.3 && lat <= 30.5 && lng >= 80 && lng <= 88.3;
@@ -55,27 +51,68 @@ function normalizeArtifact(item: any): NepalSearchArtifact | null {
   };
 }
 
+/** Previously fetched search results, for offline fallback. */
+export async function readNepalSearchCache(): Promise<NepalSearchArtifact[]> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as NepalSearchArtifact[]) : [];
+  } catch (error) {
+    console.warn('Unable to read search cache:', error);
+    return [];
+  }
+}
+
+async function writeSearchCache(items: NepalSearchArtifact[]) {
+  const existing = await readNepalSearchCache();
+  const merged = new Map<string, NepalSearchArtifact>();
+  [...existing, ...items].forEach((item) => merged.set(item.id, item));
+  const next = [...merged.values()].slice(-MAX_CACHED);
+  await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next));
+}
+
+async function searchCacheLocally(query: string, limit: number): Promise<NepalSearchArtifact[]> {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return [];
+  const catalog = await readNepalSearchCache();
+  return catalog
+    .filter((item) =>
+      [item.name, item.category, item.human_readable_location, ...item.tags]
+        .join(' ')
+        .toLocaleLowerCase()
+        .includes(normalizedQuery),
+    )
+    .slice(0, limit);
+}
+
 export async function searchNepalArtifacts(query: string) {
   const normalizedQuery = query.trim().toLocaleLowerCase();
   if (!normalizedQuery) return [];
 
-  const response = await apiRequest<{ items: Array<Record<string, unknown>> }>(
-    `/artifacts/search?q=${encodeURIComponent(normalizedQuery)}&limit=8`,
-  );
+  try {
+    const response = await apiRequest<{ items: Record<string, unknown>[] }>(
+      `/artifacts/search?q=${encodeURIComponent(normalizedQuery)}&limit=8`,
+    );
 
-  return response.items
-    .map((item) =>
-      normalizeArtifact({
-        ...item,
-        lat: item.latitude,
-        lng: item.longitude,
-        reference_images: item.coverImageUrl ? [item.coverImageUrl] : [],
-        human_readable_location: item.humanReadableLocation,
-        xp_value: item.xpReward,
-        discovery_count: item.discoveryCount,
-      }),
-    )
-    .filter((artifact): artifact is NepalSearchArtifact => artifact !== null);
+    const items = response.items
+      .map((item) =>
+        normalizeArtifact({
+          ...item,
+          lat: item.latitude,
+          lng: item.longitude,
+          reference_images: item.coverImageUrl ? [item.coverImageUrl] : [],
+          human_readable_location: item.humanReadableLocation,
+          xp_value: item.xpReward,
+          discovery_count: item.discoveryCount,
+        }),
+      )
+      .filter((artifact): artifact is NepalSearchArtifact => artifact !== null);
+
+    await writeSearchCache(items).catch(() => undefined);
+    return items;
+  } catch (error) {
+    console.warn('Search failed offline - using cached catalog:', error);
+    return searchCacheLocally(normalizedQuery, 8);
+  }
 }
 
 function distanceInMeters(
@@ -100,19 +137,32 @@ export async function getNearbyNepalArtifacts(
   lng: number,
   radiusMeters = 5000
 ) {
-  const response = await apiRequest<{ items: Array<Record<string, unknown>> }>(
-    `/artifacts/nearby?latitude=${lat}&longitude=${lng}&radiusMeters=${radiusMeters}`,
-  );
-  return response.items
-    .map((item) => normalizeArtifact({
-      ...item,
-      lat: item.latitude,
-      lng: item.longitude,
-      reference_images: item.coverImageUrl ? [item.coverImageUrl] : [],
-      human_readable_location: item.humanReadableLocation,
-      xp_value: item.xpReward,
-      discovery_count: item.discoveryCount,
-      distance_m: item.distanceMeters,
-    }))
-    .filter((artifact): artifact is NepalSearchArtifact => artifact !== null);
+  try {
+    const response = await apiRequest<{ items: Record<string, unknown>[] }>(
+      `/artifacts/nearby?latitude=${lat}&longitude=${lng}&radiusMeters=${radiusMeters}`,
+    );
+    const items = response.items
+      .map((item) => normalizeArtifact({
+        ...item,
+        lat: item.latitude,
+        lng: item.longitude,
+        reference_images: item.coverImageUrl ? [item.coverImageUrl] : [],
+        human_readable_location: item.humanReadableLocation,
+        xp_value: item.xpReward,
+        discovery_count: item.discoveryCount,
+        distance_m: item.distanceMeters,
+      }))
+      .filter((artifact): artifact is NepalSearchArtifact => artifact !== null);
+    await writeSearchCache(items).catch(() => undefined);
+    return items;
+  } catch (error) {
+    console.warn('Nearby fetch failed offline - using cached catalog:', error);
+    return readNepalSearchCache().then((catalog) =>
+      catalog
+        .map((item) => ({ ...item, distance_m: distanceInMeters(lat, lng, item.lat, item.lng) }))
+        .filter((item) => item.distance_m <= radiusMeters)
+        .sort((a, b) => a.distance_m - b.distance_m)
+        .slice(0, 50),
+    );
+  }
 }
