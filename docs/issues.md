@@ -1,13 +1,11 @@
-frontend:
-1. the story or description in artifact details isnt md parsed so we need md format parsing
-2. pressing the back button in header takes to a dummy homepage instead of the actual homepage
-3. the profile menu contains 2 logout buttons ; one directly on the menu, another inside the settings; the one on the settings works but the one on the menu doesn't work, so keep the one in the settings that works, and remove the one on the menu that doesnt work
-4. the uer collectionpage shows broken cards, their layout is not properly managed
-
-more work:
-5. there is no caching in the frontend, we want it as much offline as possible
-6. the proximity alert feature is not tested and we dont know if it works
-7. in the first project detail(story locked) page, the quest rarity and the xp arent loaded from db so it gives undefined
-
-backend:
-in image upload, webp image format isnt accepted
+- submission takes too much time:
+    the image(snap) is uploaded on clicking submit; it should be uploaded right on the submit page
+- cloudinary delete is inconsistent on image upload
+- no image optimization, our cv uses 512 dimentions np array for images for which we upload actual images which is unnecessary 
+- cv has too much latency (> 10s): this might be because it has to fetch docs itself, and also communicate with the clip api for comparing; maybe the algorithm can be improved; i.e. comparing against chunked average or just few images; or just the cover images; 
+there's something wrong with the splash screen,
+the location focus btn on explore page overlaps the bottom sheet,
+the collection cards dont show anything(link them to the story viewing page),
+the community apis arent used(use them in the artifact detail unlocked page to show what others clicked add small bar having thumbnails of community images and a lil view all link that takes to the gallery by community)
+the map flickers i.e. when we start navigating, it rerenders and zooms out all of a sudden
+- the submit page has no good loading ui: it just shows the "Submitting..." button state so users dont know whats happening; there are 3 steps that might happen (public photos uploading, verifying snap, submitting snap) - a staged loading ui would be better
