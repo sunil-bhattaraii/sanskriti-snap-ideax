@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from .auth import require_auth
 from .config import get_settings
@@ -67,6 +67,31 @@ def compare(req: CompareRequest):
 
 
 app.include_router(router)
+
+
+@app.get("/", response_class=HTMLResponse)
+def index():
+    return """<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanskriti Snap CV Service</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 34rem; margin: 4rem auto; padding: 0 1rem; color: #222; }
+  code { background: #f2f2f2; padding: .1rem .3rem; border-radius: 3px; }
+  ul { padding-left: 1.2rem; }
+</style>
+<h1>Sanskriti Snap CV Service</h1>
+<p>Internal FastAPI service that verifies user photos of artifacts against stored
+reference images using CLIP embeddings and cosine top-K similarity.</p>
+<ul>
+  <li><code>POST /embed</code> &mdash; image to a 512-d embedding</li>
+  <li><code>POST /compare</code> &mdash; image vs reference vectors, returns similarity score</li>
+  <li><code>GET /health</code> &mdash; readiness probe</li>
+</ul>
+<p>Server-to-server only; endpoints require a bearer secret. The Next.js backend
+owns the final VERIFIED / FLAGGED decision.</p>
+</html>"""
 
 
 @app.get("/health")
