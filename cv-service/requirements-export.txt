@@ -1,0 +1,6 @@
+# Build/dev only: needed to run scripts/export_onnx.py, never imported at runtime.
+# On servers install a CPU torch build first:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+transformers>=4.40
+onnx>=1.16

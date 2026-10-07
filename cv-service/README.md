@@ -6,12 +6,14 @@ Internal FastAPI service for image verification support. It creates CLIP embeddi
 
 ```
 app/       service modules (relative imports; run as `app.main:app`)
+scripts/   export_onnx.py — builds the int8 ONNX model used at runtime
 tests/     pytest suite; imports `app.*`
+model/     generated ONNX file (gitignored)
 ```
 
 ## Setup and run
 
-Requirements: Python 3.11+ and a PyTorch installation suitable for the host CPU/GPU.
+Requirements: Python 3.11+. Runtime uses `onnxruntime` only — no torch needed to serve.
 
 ```bash
 # Windows
@@ -28,6 +30,13 @@ Copy-Item .env.example .env            # Windows
 ```
 
 Set `CV_SERVICE_SECRET` to the same value used by the backend. Configure MongoDB and Cloudinary values in `.env` when using stored references or Cloudinary public IDs.
+
+Export the CLIP vision tower to an int8 ONNX file (one-time; needs torch — see `requirements-export.txt`):
+
+```bash
+pip install -r requirements-export.txt          # servers: install CPU torch first (see file)
+python scripts/export_onnx.py
+```
 
 Start the service:
 
@@ -50,6 +59,19 @@ curl -X POST localhost:8000/embed -H "Authorization: Bearer $CV_SERVICE_SECRET" 
 curl -X POST localhost:8000/compare -H "Authorization: Bearer $CV_SERVICE_SECRET" \
   -H "Content-Type: application/json" -d '{"image":"<publicId>","artifactId":"<24-hex>","topK":3}'
 ```
+
+## Deploy (Render, free tier)
+
+```bash
+# Build command (installs CPU torch only to export the model, then removes it)
+pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r requirements.txt -r requirements-export.txt && python scripts/export_onnx.py --purge-cache && pip uninstall -y torch
+
+# Start command
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Health check path: `/health`. The service serves a dynamic-int8 ONNX export of the
+CLIP vision tower (~90 MB on disk, ~150 MB at runtime) so it fits a 512 MB instance.
 
 ## Test
 
