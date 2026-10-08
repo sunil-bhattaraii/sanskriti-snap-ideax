@@ -44,3 +44,45 @@ body {
 html {
   scroll-behavior: smooth;
 }
+
+@keyframes hero-phone-left {
+  from {
+    opacity: 0;
+    transform: translate(90px, 40px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes hero-phone-right {
+  from {
+    opacity: 0;
+    transform: translate(-90px, 40px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+.hero-phone-left {
+  animation: hero-phone-left 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+
+.hero-phone-right {
+  animation: hero-phone-right 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .hero-phone-left,
+  .hero-phone-right {
+    animation: none;
+    opacity: 1;
+  }
+}
