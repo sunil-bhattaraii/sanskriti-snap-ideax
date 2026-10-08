@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { APK_DOWNLOAD_URL } from "@/lib/download";
 
 export default function Hero() {
   return (
@@ -17,7 +18,7 @@ export default function Hero() {
           </div>
 
           <div className="flex flex-wrap gap-4">
-            <Link href="#download" className="bg-terracotta text-white font-mono font-bold text-sm px-6 py-3 rounded-lg hover:bg-terracotta-deep transition-colors flex items-center gap-2">
+            <Link href={APK_DOWNLOAD_URL} className="bg-terracotta text-white font-mono font-bold text-sm px-6 py-3 rounded-lg hover:bg-terracotta-deep transition-colors flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
               <div className="flex flex-col items-start">
                 <span>DOWNLOAD FREE</span>
@@ -28,18 +29,6 @@ export default function Hero() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               Watch How It Works
             </Link>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            {["App Store", "Google Play"].map((store) => (
-              <div key={store} className="flex items-center gap-2 bg-white border border-surface-dim px-3 py-2 rounded-lg cursor-pointer hover:border-terracotta transition-colors">
-                <div className="w-5 h-5 bg-surface-dim rounded-sm"></div>
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-mono font-bold text-text-muted leading-none">AVAILABLE ON</span>
-                  <span className="text-xs font-bold text-text-main leading-tight">{store}</span>
-                </div>
-              </div>
-            ))}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-4 border-t border-surface-dim">

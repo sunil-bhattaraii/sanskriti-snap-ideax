@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { APK_DOWNLOAD_URL } from "@/lib/download";
 
 export default function Navbar() {
   return (
@@ -24,7 +25,10 @@ export default function Navbar() {
         </ul>
 
         <div className="flex items-center gap-4">
-          <Link href="#download" className="bg-terracotta text-white font-mono font-bold text-xs px-4 py-2.5 rounded-lg hover:bg-terracotta-deep transition-colors">
+          <Link
+            href={APK_DOWNLOAD_URL}
+            className="bg-terracotta text-white font-mono font-bold text-xs px-4 py-2.5 rounded-lg hover:bg-terracotta-deep transition-colors"
+          >
             DOWNLOAD NOW
           </Link>
           <div className="w-9 h-9 rounded-full bg-terracotta/10 flex items-center justify-center text-terracotta font-bold text-sm">U</div>
