@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { UserButton, useUser } from "@clerk/nextjs";
-import { APK_DOWNLOAD_URL } from "@/lib/download";
 
 export default function Navbar() {
   const { isLoaded, isSignedIn } = useUser();
