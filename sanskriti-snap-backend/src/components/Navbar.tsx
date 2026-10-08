@@ -35,7 +35,7 @@ export default function Navbar() {
 
         <div className="flex items-center gap-4">
           <Link
-            href={APK_DOWNLOAD_URL}
+            href="/#download"
             className="bg-terracotta text-white font-mono font-bold text-xs px-4 py-2.5 rounded-lg hover:bg-terracotta-deep transition-colors"
           >
             DOWNLOAD NOW
