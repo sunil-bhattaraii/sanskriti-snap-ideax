@@ -1,5 +1,5 @@
 .env
-temp/
+temp*/
 
 # Python
 __pycache__/
