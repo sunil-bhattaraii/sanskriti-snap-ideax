@@ -4,7 +4,7 @@ import { APK_DOWNLOAD_URL } from "@/lib/download";
 
 export default function Footer() {
   return (
-    <footer className="bg-surface-dim/30 border-t border-surface-dim py-16 px-5 md:px-10">
+    <footer id="about" className="bg-surface-dim/30 border-t border-surface-dim py-16 px-5 md:px-10 scroll-mt-20">
       <div className="max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           <div className="space-y-4">

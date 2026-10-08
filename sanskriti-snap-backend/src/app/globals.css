@@ -40,3 +40,7 @@ body {
   background-color: #fdf9f6;
   color: #1c1b1a;
 }
+
+html {
+  scroll-behavior: smooth;
+}

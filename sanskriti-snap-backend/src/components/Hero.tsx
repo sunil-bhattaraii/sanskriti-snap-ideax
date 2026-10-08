@@ -4,7 +4,7 @@ import { APK_DOWNLOAD_URL } from "@/lib/download";
 
 export default function Hero() {
   return (
-    <section className="py-16 md:py-24 px-5 md:px-10 max-w-7xl mx-auto">
+    <section id="home" className="py-16 md:py-24 px-5 md:px-10 max-w-7xl mx-auto scroll-mt-20">
       <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
         <div className="space-y-8">
           <div className="space-y-4">

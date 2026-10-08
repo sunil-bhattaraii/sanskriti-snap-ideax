@@ -8,7 +8,7 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-20 px-5 md:px-10 bg-surface-low">
+    <section id="how-it-works" className="py-20 px-5 md:px-10 bg-surface-low scroll-mt-20">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div className="max-w-2xl">

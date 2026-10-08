@@ -1,6 +1,6 @@
 export default function MicroNavigation() {
   return (
-    <section className="py-20 px-5 md:px-10 bg-surface-low">
+    <section id="features" className="py-20 px-5 md:px-10 bg-surface-low scroll-mt-20">
       <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
         <div className="flex justify-center order-2 lg:order-1">
           <div className="bg-white p-4 rounded-2xl shadow-xl border border-surface-dim max-w-md w-full">

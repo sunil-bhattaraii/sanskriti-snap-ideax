@@ -1,6 +1,6 @@
 export default function StoryUnlocking() {
   return (
-    <section className="py-20 px-5 md:px-10 max-w-7xl mx-auto">
+    <section id="heritage" className="py-20 px-5 md:px-10 max-w-7xl mx-auto scroll-mt-20">
       <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
         <div className="space-y-8 order-2 lg:order-1">
           <div className="space-y-4">

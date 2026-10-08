@@ -12,10 +12,17 @@ export default function Navbar() {
         </Link>
 
         <ul className="hidden lg:flex items-center gap-8">
-          {["Home", "Features", "How It Works", "Heritage Discoveries", "Quests & Rewards", "About"].map((item) => (
-            <li key={item}>
-              <Link href="#" className={`text-sm font-medium ${item === "Home" ? "text-terracotta" : "text-text-muted hover:text-terracotta"} transition-colors`}>
-                {item}
+          {[
+            { label: "Home", href: "#home" },
+            { label: "How It Works", href: "#how-it-works" },
+            { label: "Heritage Discoveries", href: "#heritage" },
+            { label: "Features", href: "#features" },
+            { label: "Quests & Rewards", href: "#quests" },
+            { label: "About", href: "#about" },
+          ].map((item) => (
+            <li key={item.label}>
+              <Link href={item.href} className={`text-sm font-medium ${item.href === "#home" ? "text-terracotta" : "text-text-muted hover:text-terracotta"} transition-colors`}>
+                {item.label}
               </Link>
             </li>
           ))}
