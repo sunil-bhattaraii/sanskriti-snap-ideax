@@ -3,7 +3,7 @@ import { APK_DOWNLOAD_URL } from "@/lib/download";
 
 export default function CTA() {
   return (
-    <section id="download" className="py-20 px-5 md:px-10">
+    <section id="download" className="py-20 px-5 md:px-10 scroll-mt-20">
       <div className="max-w-7xl mx-auto bg-terracotta rounded-3xl p-8 md:p-16 text-white relative overflow-hidden">
         <div className="grid lg:grid-cols-2 gap-12 items-center relative z-10">
           <div className="space-y-6">
