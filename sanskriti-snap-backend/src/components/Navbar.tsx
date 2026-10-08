@@ -1,8 +1,13 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { APK_DOWNLOAD_URL } from "@/lib/download";
 
 export default function Navbar() {
+  const { isLoaded, isSignedIn } = useUser();
+
   return (
     <nav className="sticky top-0 z-50 bg-surface/90 backdrop-blur-md border-b border-surface-dim">
       <div className="max-w-7xl mx-auto px-5 md:px-10 py-4 flex items-center justify-between">
@@ -35,7 +40,11 @@ export default function Navbar() {
           >
             DOWNLOAD NOW
           </Link>
-          <div className="w-9 h-9 rounded-full bg-terracotta/10 flex items-center justify-center text-terracotta font-bold text-sm">U</div>
+          {isLoaded && isSignedIn && (
+            <span className="flex items-center">
+              <UserButton />
+            </span>
+          )}
         </div>
       </div>
     </nav>
