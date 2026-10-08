@@ -2,8 +2,8 @@
 
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useState } from "react";
-import Management, { type Section } from "./admin/Management";
-import "./admin.css";
+import Management, { type Section } from "./Management";
+import "../admin.css";
 
 type DashboardStats = {
   users: number;

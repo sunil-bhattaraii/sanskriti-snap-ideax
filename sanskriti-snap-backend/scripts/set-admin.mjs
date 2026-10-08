@@ -12,6 +12,6 @@ const r = await mongoose.connection.db
   );
 console.log("matched:", r.matchedCount, "modified:", r.modifiedCount);
 if (r.matchedCount === 0) {
-  console.log("No record found — sign in as admin@user.com at http://localhost:3000/sign-in first, then re-run this script.");
+  console.log("No record found — sign in as admin@user.com at http://localhost:3000/admin/sign-in first, then re-run this script.");
 }
 await mongoose.disconnect();

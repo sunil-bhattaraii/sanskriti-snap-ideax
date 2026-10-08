@@ -37,7 +37,7 @@ export default function TokenPage() {
         <div className="text-center space-y-4">
           <p className="text-zinc-600 dark:text-zinc-400">You are not signed in.</p>
           <Link
-            href="/sign-in"
+            href="/admin/sign-in"
             className="inline-block rounded-full bg-black px-6 py-2 text-sm font-medium text-white dark:bg-white dark:text-black"
           >
             Sign in
