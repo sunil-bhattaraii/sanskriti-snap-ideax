@@ -8,10 +8,10 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Image src="/assets/images/logo.png" alt="Sanskriti Snap" width={32} height={32} className="h-8 w-8" />
+            <Link href="#home" className="flex items-center gap-2 w-fit" aria-label="Sanskriti Snap — back to top">
+              <Image src="/assets/images/logo.png" alt="Sanskriti Snap" width={226} height={185} className="h-8 w-auto" />
               <span className="font-display font-bold text-xl text-terracotta">Sanskriti Snap</span>
-            </div>
+            </Link>
             <p className="font-body text-sm text-text-muted">Discover, Learn, and Collect Nepal&apos;s Overlooked Heritage. An exploratory digital companion connecting travelers, researchers, and locals with ancient monuments.</p>
             <Link href={APK_DOWNLOAD_URL} className="inline-flex items-center gap-2 bg-terracotta text-white font-mono font-bold text-xs px-4 py-2.5 rounded-lg hover:bg-terracotta-deep transition-colors w-fit">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>

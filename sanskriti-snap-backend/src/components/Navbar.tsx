@@ -6,13 +6,10 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 bg-surface/90 backdrop-blur-md border-b border-surface-dim">
       <div className="max-w-7xl mx-auto px-5 md:px-10 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Image src="/assets/images/logo.png" alt="Sanskriti Snap" width={32} height={32} className="h-8 w-8" priority />
-            <span className="font-display font-bold text-xl text-terracotta">Sanskriti Snap</span>
-          </div>
-          <span className="font-mono text-[10px] font-bold bg-surface-low px-2 py-1 rounded text-text-muted">NEPAL HERITAGE</span>
-        </div>
+        <Link href="#home" className="flex items-center gap-2" aria-label="Sanskriti Snap — back to top">
+          <Image src="/assets/images/logo.png" alt="Sanskriti Snap" width={226} height={185} className="h-8 w-auto" priority />
+          <span className="font-display font-bold text-xl text-terracotta">Sanskriti Snap</span>
+        </Link>
 
         <ul className="hidden lg:flex items-center gap-8">
           {["Home", "Features", "How It Works", "Heritage Discoveries", "Quests & Rewards", "About"].map((item) => (
