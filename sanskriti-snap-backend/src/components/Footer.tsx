@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { APK_DOWNLOAD_URL } from "@/lib/download";
 
 export default function Footer() {
   return (
@@ -12,17 +13,10 @@ export default function Footer() {
               <span className="font-display font-bold text-xl text-terracotta">Sanskriti Snap</span>
             </div>
             <p className="font-body text-sm text-text-muted">Discover, Learn, and Collect Nepal&apos;s Overlooked Heritage. An exploratory digital companion connecting travelers, researchers, and locals with ancient monuments.</p>
-            <div className="flex gap-3 pt-2">
-              {["App Store", "Google Play"].map((store) => (
-                <div key={store} className="flex items-center gap-1 bg-white border border-surface-dim px-2 py-1.5 rounded cursor-pointer">
-                  <div className="w-4 h-4 bg-surface-dim rounded-sm"></div>
-                  <div className="flex flex-col">
-                    <span className="text-[8px] font-mono font-bold text-text-muted leading-none">Download On</span>
-                    <span className="text-[10px] font-bold text-text-main leading-tight">{store}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Link href={APK_DOWNLOAD_URL} className="inline-flex items-center gap-2 bg-terracotta text-white font-mono font-bold text-xs px-4 py-2.5 rounded-lg hover:bg-terracotta-deep transition-colors w-fit">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              DOWNLOAD NOW
+            </Link>
           </div>
 
           <div>
