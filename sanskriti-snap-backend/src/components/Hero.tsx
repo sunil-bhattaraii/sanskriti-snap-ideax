@@ -22,12 +22,12 @@ export default function Hero() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
               <div className="flex flex-col items-start">
                 <span>DOWNLOAD FREE</span>
-                <span className="text-[10px] font-normal opacity-80">iOS & ANDROID BETA</span>
+                <span className="text-[10px] font-normal opacity-80">ANDROID BETA RELEASE</span>
               </div>
             </Link>
             <Link href="#how-it-works" className="border-2 border-surface-dim text-text-main font-mono font-bold text-sm px-6 py-3 rounded-lg hover:border-terracotta hover:text-terracotta transition-colors flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Watch How It Works
+              See How It Works
             </Link>
           </div>
 
@@ -48,21 +48,23 @@ export default function Hero() {
 
         {/* Phone Mockup Showcase — app screenshots */}
         <div className="relative flex items-center justify-center w-full min-h-[520px]">
-          {/* Phone 1: Explore map */}
-          <div className="hidden sm:block absolute left-0 top-10 w-[150px] xl:w-[180px] bg-slate-charcoal rounded-[2.5rem] p-2 shadow-2xl -rotate-6 hover:rotate-0 transition-transform duration-500 z-10">
-            <div className="relative w-full h-[380px] rounded-[2rem] overflow-hidden bg-surface-low">
-              <Image
-                src="/assets/images/exolore map screenshot.webp"
-                alt="Explore map of nearby heritage sites"
-                fill
-                sizes="180px"
-                className="object-cover"
-              />
+          {/* Phone 1: Explore map — slides out from behind the centre screen */}
+          <div className="hidden sm:block absolute left-4 top-10 w-[150px] xl:w-[180px] z-10 hero-phone-left">
+            <div className="bg-slate-charcoal rounded-[2.5rem] p-2 shadow-2xl -rotate-[10deg] transition-transform duration-500 hover:-translate-x-3 hover:-translate-y-3 motion-reduce:transition-none">
+              <div className="relative w-full h-[380px] rounded-[2rem] overflow-hidden bg-surface-low">
+                <Image
+                  src="/assets/images/exolore map screenshot.webp"
+                  alt="Explore map of nearby heritage sites"
+                  fill
+                  sizes="180px"
+                  className="object-cover"
+                />
+              </div>
             </div>
           </div>
 
           {/* Phone 2: Home screen */}
-          <div className="relative w-[220px] xl:w-[250px] bg-slate-charcoal rounded-[3rem] p-3 shadow-2xl z-20 hover:-translate-y-2 transition-transform duration-300">
+          <div className="relative w-[220px] xl:w-[250px] bg-slate-charcoal rounded-[3rem] p-3 shadow-2xl z-20 hover:-translate-y-2 transition-transform duration-300 motion-reduce:transition-none">
             <div className="relative w-full h-[480px] rounded-[2.5rem] overflow-hidden bg-surface-low">
               <Image
                 src="/assets/images/main landing page.webp"
@@ -75,16 +77,18 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* Phone 3: Leaderboard */}
-          <div className="hidden sm:block absolute right-0 top-16 w-[150px] xl:w-[180px] bg-slate-charcoal rounded-[2.5rem] p-2 shadow-2xl rotate-6 hover:rotate-0 transition-transform duration-500 z-10">
-            <div className="relative w-full h-[380px] rounded-[2rem] overflow-hidden bg-surface-low">
-              <Image
-                src="/assets/images/leaderblard screenshot.webp"
-                alt="Heritage leaderboard screen"
-                fill
-                sizes="180px"
-                className="object-cover"
-              />
+          {/* Phone 3: Leaderboard — slides out from behind the centre screen */}
+          <div className="hidden sm:block absolute right-4 top-16 w-[150px] xl:w-[180px] z-10 hero-phone-right">
+            <div className="bg-slate-charcoal rounded-[2.5rem] p-2 shadow-2xl rotate-[10deg] transition-transform duration-500 hover:translate-x-3 hover:-translate-y-3 motion-reduce:transition-none">
+              <div className="relative w-full h-[380px] rounded-[2rem] overflow-hidden bg-surface-low">
+                <Image
+                  src="/assets/images/leaderblard screenshot.webp"
+                  alt="Heritage leaderboard screen"
+                  fill
+                  sizes="180px"
+                  className="object-cover"
+                />
+              </div>
             </div>
           </div>
         </div>
